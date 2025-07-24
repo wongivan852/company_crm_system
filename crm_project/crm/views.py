@@ -4,19 +4,25 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count
+from django.http import HttpResponse
+from django.contrib import messages
+from django.shortcuts import render, redirect
+import csv
+import datetime
 from .models import Customer, Course, Enrollment, Conference, ConferenceRegistration, CommunicationLog
 from .serializers import (
     CustomerSerializer, CourseSerializer, EnrollmentSerializer, 
     ConferenceSerializer, CommunicationLogSerializer
 )
 from .communication_services import CommunicationManager
+from .forms import CustomerForm
 
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['customer_type', 'status', 'preferred_communication']
-    search_fields = ['first_name', 'last_name', 'email', 'company']
+    filterset_fields = ['customer_type', 'status']
+    search_fields = ['first_name', 'last_name', 'email_primary', 'company_primary']
     ordering_fields = ['created_at', 'last_name', 'first_name']
     ordering = ['-created_at']
     
@@ -24,7 +30,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
     def send_message(self, request, pk=None):
         """Send message to customer via their preferred channel"""
         customer = self.get_object()
-        channel = request.data.get('channel', customer.preferred_communication)
+        channel = request.data.get('channel', 'email')  # Default to email
         subject = request.data.get('subject', '')
         content = request.data.get('content', '')
         
@@ -45,13 +51,71 @@ class CustomerViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Contact parameter required'}, status=400)
         
         customers = Customer.objects.filter(
-            Q(email__icontains=contact) |
-            Q(phone__icontains=contact) |
+            Q(email_primary__icontains=contact) |
+            Q(phone_primary__icontains=contact) |
             Q(whatsapp_number__icontains=contact)
         )
         
         serializer = self.get_serializer(customers, many=True)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def export_csv(self, request):
+        """Export all customer data to CSV"""
+        response = HttpResponse(content_type='text/csv')
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        response['Content-Disposition'] = f'attachment; filename="customers_export_{timestamp}.csv"'
+        
+        writer = csv.writer(response)
+        
+        # CSV Headers - matching actual model fields
+        headers = [
+            'ID', 'First Name', 'Last Name', 'Primary Email', 'Secondary Email',
+            'Primary Phone', 'Secondary Phone', 'WhatsApp Number', 'Fax',
+            'Primary Company', 'Primary Position', 'Secondary Company', 'Secondary Position',
+            'Primary Address', 'Secondary Address', 'Country/Region', 'Company Website',
+            'LinkedIn Profile', 'Facebook Profile', 'Twitter Handle', 'Instagram Handle', 'WeChat ID',
+            'Customer Type', 'Status', 'Preferred Learning Format', 'Interests',
+            'Marketing Consent', 'Created At', 'Updated At'
+        ]
+        writer.writerow(headers)
+        
+        # Export customer data
+        for customer in Customer.objects.all():
+            row = [
+                customer.id,
+                customer.first_name,
+                customer.last_name,
+                customer.email_primary,
+                customer.email_secondary,
+                customer.phone_primary,
+                customer.phone_secondary,
+                customer.whatsapp_number,
+                customer.fax,
+                customer.company_primary,
+                customer.position_primary,
+                customer.company_secondary,
+                customer.position_secondary,
+                customer.address_primary,
+                customer.address_secondary,
+                customer.country_region,
+                customer.company_website,
+                customer.linkedin_profile,
+                customer.facebook_profile,
+                customer.twitter_handle,
+                customer.instagram_handle,
+                customer.wechat_id,
+                customer.customer_type,
+                customer.status,
+                customer.preferred_learning_format,
+                customer.interests,
+                customer.marketing_consent,
+                customer.created_at.strftime('%Y-%m-%d %H:%M:%S') if customer.created_at else '',
+                customer.updated_at.strftime('%Y-%m-%d %H:%M:%S') if customer.updated_at else ''
+            ]
+            writer.writerow(row)
+        
+        return response
 
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
@@ -101,3 +165,112 @@ class CommunicationLogViewSet(viewsets.ReadOnlyModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['customer', 'channel', 'is_outbound']
     ordering = ['-sent_at']
+
+
+# Traditional Django views for admin interface
+def export_customers_csv(request):
+    """Export all customer data to CSV - traditional Django view"""
+    response = HttpResponse(content_type='text/csv')
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    response['Content-Disposition'] = f'attachment; filename="customers_export_{timestamp}.csv"'
+    
+    writer = csv.writer(response)
+    
+    # CSV Headers - matching actual model fields
+    headers = [
+        'ID', 'First Name', 'Last Name', 'Primary Email', 'Secondary Email',
+        'Primary Phone', 'Secondary Phone', 'WhatsApp Number', 'Fax',
+        'Primary Company', 'Primary Position', 'Secondary Company', 'Secondary Position',
+        'Primary Address', 'Secondary Address', 'Country/Region', 'Company Website',
+        'LinkedIn Profile', 'Facebook Profile', 'Twitter Handle', 'Instagram Handle', 'WeChat ID',
+        'Customer Type', 'Status', 'Preferred Learning Format', 'Interests',
+        'Marketing Consent', 'Created At', 'Updated At'
+    ]
+    writer.writerow(headers)
+    
+    # Export customer data
+    for customer in Customer.objects.all():
+        row = [
+            customer.id,
+            customer.first_name,
+            customer.last_name,
+            customer.email_primary,
+            customer.email_secondary,
+            customer.phone_primary,
+            customer.phone_secondary,
+            customer.whatsapp_number,
+            customer.fax,
+            customer.company_primary,
+            customer.position_primary,
+            customer.company_secondary,
+            customer.position_secondary,
+            customer.address_primary,
+            customer.address_secondary,
+            customer.country_region,
+            customer.company_website,
+            customer.linkedin_profile,
+            customer.facebook_profile,
+            customer.twitter_handle,
+            customer.instagram_handle,
+            customer.wechat_id,
+            customer.customer_type,
+            customer.status,
+            customer.preferred_learning_format,
+            customer.interests,
+            customer.marketing_consent,
+            customer.created_at.strftime('%Y-%m-%d %H:%M:%S') if customer.created_at else '',
+            customer.updated_at.strftime('%Y-%m-%d %H:%M:%S') if customer.updated_at else ''
+        ]
+        writer.writerow(row)
+    
+    return response
+
+
+def customer_dashboard(request):
+    """Simple dashboard view for UAT testing"""
+    from .models import Course, Enrollment
+    context = {
+        'total_customers': Customer.objects.count(),
+        'active_customers': Customer.objects.filter(status='active').count(),
+        'recent_customers': Customer.objects.order_by('-created_at')[:5],
+        'total_courses': Course.objects.filter(is_active=True).count() if hasattr(Course, 'objects') else 0,
+        'total_enrollments': Enrollment.objects.count() if hasattr(Enrollment, 'objects') else 0,
+    }
+    return render(request, 'crm/dashboard.html', context)
+
+
+def public_customer_list(request):
+    """Public customer list for UAT testing (no login required)"""
+    customers = Customer.objects.all()
+    
+    # Search functionality
+    search_query = request.GET.get('search')
+    if search_query:
+        customers = customers.filter(
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query) |
+            Q(email_primary__icontains=search_query) |
+            Q(company_primary__icontains=search_query)
+        )
+    
+    context = {
+        'customers': customers[:50],  # Limit to 50 for UAT
+        'search_query': search_query,
+        'customer_types': Customer.CUSTOMER_TYPES,
+        'statuses': Customer.STATUS_CHOICES,
+    }
+    return render(request, 'crm/customer_list.html', context)
+
+
+def public_customer_create(request):
+    """Public customer creation for UAT testing"""
+    if request.method == 'POST':
+        form = CustomerForm(request.POST)
+        if form.is_valid():
+            customer = form.save()
+            messages.success(request, f'Customer {customer.first_name} {customer.last_name} created successfully!')
+            return redirect('crm:public_customer_list')
+    else:
+        form = CustomerForm()
+    
+    return render(request, 'crm/customer_form.html', {'form': form, 'title': 'Add New Customer'})
