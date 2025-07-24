@@ -2,6 +2,53 @@
 
 {% block title %}{{ title }} - Learning Institute CRM{% endblock %}
 
+{% block extra_head %}
+<script>
+// Country code mapping
+const countryCodeMap = {
+    'CN': '+86', 'HK': '+852', 'TW': '+886', 'MO': '+853',
+    'SG': '+65', 'MY': '+60', 'TH': '+66', 'VN': '+84',
+    'PH': '+63', 'ID': '+62', 'KR': '+82', 'JP': '+81',
+    'IN': '+91', 'AU': '+61', 'NZ': '+64',
+    'GB': '+44', 'DE': '+49', 'FR': '+33', 'IT': '+39',
+    'ES': '+34', 'NL': '+31', 'BE': '+32', 'CH': '+41',
+    'AT': '+43', 'SE': '+46', 'NO': '+47', 'DK': '+45', 'FI': '+358',
+    'US': '+1', 'CA': '+1', 'MX': '+52', 'BR': '+55',
+    'AR': '+54', 'CL': '+56', 'CO': '+57', 'PE': '+51',
+    'AE': '+971', 'SA': '+966', 'IL': '+972', 'ZA': '+27',
+    'EG': '+20', 'KE': '+254', 'NG': '+234',
+    'RU': '+7', 'TR': '+90'
+};
+
+function updateCountryCodes(countryCode) {
+    const phoneCode = countryCodeMap[countryCode] || '';
+    
+    // Update all country code fields
+    const countryCodeFields = [
+        'id_phone_primary_country_code',
+        'id_phone_secondary_country_code',
+        'id_whatsapp_country_code',
+        'id_fax_country_code'
+    ];
+    
+    countryCodeFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.value = phoneCode;
+        }
+    });
+}
+
+// Initialize country codes on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const countryField = document.getElementById('id_country_region');
+    if (countryField && countryField.value) {
+        updateCountryCodes(countryField.value);
+    }
+});
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2"><i class="fas fa-user-plus"></i> {{ title }}</h1>
@@ -29,20 +76,44 @@
                 <form method="post">
                     {% csrf_token %}
                     
-                    <!-- Basic Information -->
+                    <!-- Enhanced Name Information -->
                     <div class="row mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name *</label>
                             {{ form.first_name }}
                             {% if form.first_name.errors %}
                                 <div class="text-danger">{{ form.first_name.errors }}</div>
                             {% endif %}
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
+                            <label for="{{ form.middle_name.id_for_label }}" class="form-label">Middle Name</label>
+                            {{ form.middle_name }}
+                            {% if form.middle_name.errors %}
+                                <div class="text-danger">{{ form.middle_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
                             <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name *</label>
                             {{ form.last_name }}
                             {% if form.last_name.errors %}
                                 <div class="text-danger">{{ form.last_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.preferred_name.id_for_label }}" class="form-label">Preferred Name/Nickname</label>
+                            {{ form.preferred_name }}
+                            {% if form.preferred_name.errors %}
+                                <div class="text-danger">{{ form.preferred_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.name_suffix.id_for_label }}" class="form-label">Name Suffix</label>
+                            {{ form.name_suffix }}
+                            {% if form.name_suffix.errors %}
+                                <div class="text-danger">{{ form.name_suffix.errors }}</div>
                             {% endif %}
                         </div>
                     </div>
@@ -65,37 +136,61 @@
                         </div>
                     </div>
                     
+                    <!-- Geographic Information -->
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label for="{{ form.country_region.id_for_label }}" class="form-label">Country/Region</label>
+                            {{ form.country_region }}
+                            {% if form.country_region.errors %}
+                                <div class="text-danger">{{ form.country_region.errors }}</div>
+                            {% endif %}
+                            <div class="form-text">Selecting a country will automatically set country codes for phone numbers</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Phone Numbers with Country Codes -->
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label for="{{ form.phone_primary.id_for_label }}" class="form-label">Primary Phone</label>
-                            {{ form.phone_primary }}
+                            <div class="input-group">
+                                {{ form.phone_primary_country_code }}
+                                {{ form.phone_primary }}
+                            </div>
                             {% if form.phone_primary.errors %}
                                 <div class="text-danger">{{ form.phone_primary.errors }}</div>
                             {% endif %}
                         </div>
                         <div class="col-md-6">
                             <label for="{{ form.phone_secondary.id_for_label }}" class="form-label">Secondary Phone</label>
-                            {{ form.phone_secondary }}
+                            <div class="input-group">
+                                {{ form.phone_secondary_country_code }}
+                                {{ form.phone_secondary }}
+                            </div>
                             {% if form.phone_secondary.errors %}
                                 <div class="text-danger">{{ form.phone_secondary.errors }}</div>
                             {% endif %}
                         </div>
                     </div>
                     
-                    <!-- Company Information -->
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label for="{{ form.company_primary.id_for_label }}" class="form-label">Company</label>
-                            {{ form.company_primary }}
-                            {% if form.company_primary.errors %}
-                                <div class="text-danger">{{ form.company_primary.errors }}</div>
+                            <label for="{{ form.whatsapp_number.id_for_label }}" class="form-label">WhatsApp</label>
+                            <div class="input-group">
+                                {{ form.whatsapp_country_code }}
+                                {{ form.whatsapp_number }}
+                            </div>
+                            {% if form.whatsapp_number.errors %}
+                                <div class="text-danger">{{ form.whatsapp_number.errors }}</div>
                             {% endif %}
                         </div>
                         <div class="col-md-6">
-                            <label for="{{ form.position_primary.id_for_label }}" class="form-label">Position</label>
-                            {{ form.position_primary }}
-                            {% if form.position_primary.errors %}
-                                <div class="text-danger">{{ form.position_primary.errors }}</div>
+                            <label for="{{ form.fax.id_for_label }}" class="form-label">Fax</label>
+                            <div class="input-group">
+                                {{ form.fax_country_code }}
+                                {{ form.fax }}
+                            </div>
+                            {% if form.fax.errors %}
+                                <div class="text-danger">{{ form.fax.errors }}</div>
                             {% endif %}
                         </div>
                     </div>
@@ -129,29 +224,63 @@
                             <div id="collapseAdditional" class="accordion-collapse collapse" data-bs-parent="#additionalFields">
                                 <div class="accordion-body">
                                     <div class="row mb-3">
-                                        <div class="col-md-6">
-                                            <label for="{{ form.whatsapp_number.id_for_label }}" class="form-label">WhatsApp</label>
-                                            {{ form.whatsapp_number }}
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label for="{{ form.fax.id_for_label }}" class="form-label">Fax</label>
-                                            {{ form.fax }}
+                                        <div class="col-md-12">
+                                            <label for="{{ form.address.id_for_label }}" class="form-label">Address</label>
+                                            {{ form.address }}
+                                            {% if form.address.errors %}
+                                                <div class="text-danger">{{ form.address.errors }}</div>
+                                            {% endif %}
                                         </div>
                                     </div>
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-4">
+                                            <label for="{{ form.city.id_for_label }}" class="form-label">City</label>
+                                            {{ form.city }}
+                                            {% if form.city.errors %}
+                                                <div class="text-danger">{{ form.city.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="{{ form.state_province.id_for_label }}" class="form-label">State/Province</label>
+                                            {{ form.state_province }}
+                                            {% if form.state_province.errors %}
+                                                <div class="text-danger">{{ form.state_province.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="{{ form.postal_code.id_for_label }}" class="form-label">Postal Code</label>
+                                            {{ form.postal_code }}
+                                            {% if form.postal_code.errors %}
+                                                <div class="text-danger">{{ form.postal_code.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="{{ form.company.id_for_label }}" class="form-label">Company</label>
+                                            {{ form.company }}
+                                            {% if form.company.errors %}
+                                                <div class="text-danger">{{ form.company.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="{{ form.job_title.id_for_label }}" class="form-label">Job Title</label>
+                                            {{ form.job_title }}
+                                            {% if form.job_title.errors %}
+                                                <div class="text-danger">{{ form.job_title.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
                                     <div class="row mb-3">
                                         <div class="col-md-12">
-                                            <label for="{{ form.address_primary.id_for_label }}" class="form-label">Primary Address</label>
-                                            {{ form.address_primary }}
-                                        </div>
-                                    </div>
-                                    <div class="row mb-3">
-                                        <div class="col-md-6">
-                                            <label for="{{ form.linkedin_profile.id_for_label }}" class="form-label">LinkedIn Profile</label>
-                                            {{ form.linkedin_profile }}
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label for="{{ form.company_website.id_for_label }}" class="form-label">Company Website</label>
-                                            {{ form.company_website }}
+                                            <label for="{{ form.notes.id_for_label }}" class="form-label">Notes</label>
+                                            {{ form.notes }}
+                                            {% if form.notes.errors %}
+                                                <div class="text-danger">{{ form.notes.errors }}</div>
+                                            {% endif %}
                                         </div>
                                     </div>
                                 </div>

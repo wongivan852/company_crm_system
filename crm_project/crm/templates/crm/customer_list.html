@@ -61,10 +61,10 @@
                             <th>Name</th>
                             <th>Email</th>
                             <th>Phone</th>
+                            <th>Country</th>
                             <th>Type</th>
                             <th>Status</th>
                             <th>Company</th>
-                            <th>Communication</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -72,10 +72,32 @@
                         {% for customer in page_obj %}
                             <tr>
                                 <td>
-                                    <strong>{{ customer.first_name }} {{ customer.last_name }}</strong>
+                                    <div>
+                                        <strong>{{ customer.display_name }}</strong>
+                                        {% if customer.preferred_name %}
+                                            <small class="text-muted">("{{ customer.preferred_name }}")</small>
+                                        {% endif %}
+                                    </div>
                                 </td>
-                                <td>{{ customer.email }}</td>
-                                <td>{{ customer.phone|default:"-" }}</td>
+                                <td>{{ customer.email_primary|default:"-" }}</td>
+                                <td>
+                                    {% if customer.phone_primary %}
+                                        {% if customer.phone_primary_country_code %}
+                                            {{ customer.phone_primary_country_code }} {{ customer.phone_primary }}
+                                        {% else %}
+                                            {{ customer.phone_primary }}
+                                        {% endif %}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if customer.country_region %}
+                                        <small>{{ customer.get_country_region_display }}</small>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
                                 <td>
                                     <span class="badge bg-info">{{ customer.get_customer_type_display }}</span>
                                 </td>
@@ -89,12 +111,6 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ customer.company|default:"-" }}</td>
-                                <td>
-                                    <small>
-                                        <i class="fas fa-{{ customer.preferred_communication|default:'envelope' }}"></i>
-                                        {{ customer.get_preferred_communication_display }}
-                                    </small>
-                                </td>
                                 <td>
                                     <div class="btn-group btn-group-sm" role="group">
                                         <a href="{% url 'crm:customer_detail' customer.id %}" class="btn btn-outline-primary" title="View">

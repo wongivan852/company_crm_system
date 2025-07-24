@@ -21,20 +21,27 @@ class Customer(models.Model):
     
     # Core Identity
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
+    first_name = models.CharField(max_length=100, help_text="Given name/First name")
+    middle_name = models.CharField(max_length=100, blank=True, help_text="Middle name(s)")
+    last_name = models.CharField(max_length=100, help_text="Family name/Last name/Surname")
+    preferred_name = models.CharField(max_length=100, blank=True, help_text="Nickname or preferred name")
+    name_suffix = models.CharField(max_length=20, blank=True, help_text="Jr., Sr., III, etc.")
     
     # Multiple Email Addresses
     email_primary = models.EmailField(unique=True, validators=[EmailValidator()], help_text="Primary email address")
     email_secondary = models.EmailField(blank=True, validators=[EmailValidator()], help_text="Secondary email address")
     
-    # Multiple Phone Numbers
-    phone_primary = models.CharField(max_length=20, blank=True, help_text="Primary phone number")
-    phone_secondary = models.CharField(max_length=20, blank=True, help_text="Secondary phone number")
+    # Multiple Phone Numbers with country codes
+    phone_primary = models.CharField(max_length=20, blank=True, help_text="Primary phone number with country code")
+    phone_primary_country_code = models.CharField(max_length=5, blank=True, help_text="Country code for primary phone")
+    phone_secondary = models.CharField(max_length=20, blank=True, help_text="Secondary phone number with country code")
+    phone_secondary_country_code = models.CharField(max_length=5, blank=True, help_text="Country code for secondary phone")
     fax = models.CharField(max_length=20, blank=True, help_text="Fax number")
+    fax_country_code = models.CharField(max_length=5, blank=True, help_text="Country code for fax")
     
     # Messaging Apps
     whatsapp_number = models.CharField(max_length=20, blank=True)
+    whatsapp_country_code = models.CharField(max_length=5, blank=True, help_text="Country code for WhatsApp")
     wechat_id = models.CharField(max_length=100, blank=True)
     
     # Social Media Accounts
@@ -43,8 +50,84 @@ class Customer(models.Model):
     twitter_handle = models.CharField(max_length=100, blank=True, help_text="Twitter/X handle (without @)")
     instagram_handle = models.CharField(max_length=100, blank=True, help_text="Instagram handle (without @)")
     
-    # Geographic Information
-    country_region = models.CharField(max_length=100, blank=True, help_text="Country/Region")
+    # Geographic Information with comprehensive country/region choices
+    COUNTRY_CHOICES = [
+        ('', 'Select Country/Region'),
+        # Asia Pacific
+        ('CN', 'China'),
+        ('HK', 'Hong Kong SAR'),
+        ('TW', 'Taiwan'),
+        ('MO', 'Macau SAR'),
+        ('SG', 'Singapore'),
+        ('MY', 'Malaysia'),
+        ('TH', 'Thailand'),
+        ('VN', 'Vietnam'),
+        ('PH', 'Philippines'),
+        ('ID', 'Indonesia'),
+        ('KR', 'South Korea'),
+        ('JP', 'Japan'),
+        ('IN', 'India'),
+        ('AU', 'Australia'),
+        ('NZ', 'New Zealand'),
+        # Europe
+        ('GB', 'United Kingdom'),
+        ('DE', 'Germany'),
+        ('FR', 'France'),
+        ('IT', 'Italy'),
+        ('ES', 'Spain'),
+        ('NL', 'Netherlands'),
+        ('BE', 'Belgium'),
+        ('CH', 'Switzerland'),
+        ('AT', 'Austria'),
+        ('SE', 'Sweden'),
+        ('NO', 'Norway'),
+        ('DK', 'Denmark'),
+        ('FI', 'Finland'),
+        # Americas
+        ('US', 'United States'),
+        ('CA', 'Canada'),
+        ('MX', 'Mexico'),
+        ('BR', 'Brazil'),
+        ('AR', 'Argentina'),
+        ('CL', 'Chile'),
+        ('CO', 'Colombia'),
+        ('PE', 'Peru'),
+        # Middle East & Africa
+        ('AE', 'United Arab Emirates'),
+        ('SA', 'Saudi Arabia'),
+        ('IL', 'Israel'),
+        ('ZA', 'South Africa'),
+        ('EG', 'Egypt'),
+        ('KE', 'Kenya'),
+        ('NG', 'Nigeria'),
+        # Others
+        ('RU', 'Russia'),
+        ('TR', 'Turkey'),
+        ('OTHER', 'Other (please specify in notes)'),
+    ]
+    
+    country_region = models.CharField(
+        max_length=10, 
+        choices=COUNTRY_CHOICES, 
+        blank=True, 
+        help_text="Select your country or region"
+    )
+    
+    # Country code mapping for phone numbers
+    COUNTRY_CODE_MAP = {
+        'CN': '+86', 'HK': '+852', 'TW': '+886', 'MO': '+853',
+        'SG': '+65', 'MY': '+60', 'TH': '+66', 'VN': '+84',
+        'PH': '+63', 'ID': '+62', 'KR': '+82', 'JP': '+81',
+        'IN': '+91', 'AU': '+61', 'NZ': '+64',
+        'GB': '+44', 'DE': '+49', 'FR': '+33', 'IT': '+39',
+        'ES': '+34', 'NL': '+31', 'BE': '+32', 'CH': '+41',
+        'AT': '+43', 'SE': '+46', 'NO': '+47', 'DK': '+45', 'FI': '+358',
+        'US': '+1', 'CA': '+1', 'MX': '+52', 'BR': '+55',
+        'AR': '+54', 'CL': '+56', 'CO': '+57', 'PE': '+51',
+        'AE': '+971', 'SA': '+966', 'IL': '+972', 'ZA': '+27',
+        'EG': '+20', 'KE': '+254', 'NG': '+234',
+        'RU': '+7', 'TR': '+90',
+    }
     
     # Customer Classification
     customer_type = models.CharField(max_length=20, choices=CUSTOMER_TYPES)
@@ -76,7 +159,52 @@ class Customer(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.first_name} {self.last_name} ({self.email_primary})"
+        full_name = f"{self.first_name} {self.last_name}"
+        if self.preferred_name:
+            full_name = f"{self.preferred_name} ({full_name})"
+        return f"{full_name} ({self.email_primary})"
+    
+    @property
+    def full_name(self):
+        """Get complete formatted name"""
+        parts = [self.first_name]
+        if self.middle_name:
+            parts.append(self.middle_name)
+        parts.append(self.last_name)
+        if self.name_suffix:
+            parts.append(self.name_suffix)
+        return ' '.join(parts)
+    
+    @property
+    def display_name(self):
+        """Get display name (preferred name or full name)"""
+        if self.preferred_name:
+            return self.preferred_name
+        return f"{self.first_name} {self.last_name}"
+    
+    def get_country_code(self):
+        """Get country code for the selected country/region"""
+        if self.country_region and self.country_region in self.COUNTRY_CODE_MAP:
+            return self.COUNTRY_CODE_MAP[self.country_region]
+        return ''
+    
+    def auto_set_country_codes(self):
+        """Automatically set country codes based on selected country"""
+        country_code = self.get_country_code()
+        if country_code:
+            if not self.phone_primary_country_code and self.phone_primary:
+                self.phone_primary_country_code = country_code
+            if not self.phone_secondary_country_code and self.phone_secondary:
+                self.phone_secondary_country_code = country_code
+            if not self.whatsapp_country_code and self.whatsapp_number:
+                self.whatsapp_country_code = country_code
+            if not self.fax_country_code and self.fax:
+                self.fax_country_code = country_code
+    
+    def save(self, *args, **kwargs):
+        """Override save to automatically set country codes"""
+        self.auto_set_country_codes()
+        super().save(*args, **kwargs)
     
     @property
     def email(self):

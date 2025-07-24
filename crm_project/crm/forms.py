@@ -3,27 +3,55 @@ from django import forms
 from .models import Customer, Enrollment, Course, CustomerCommunicationPreference
 
 class CustomerForm(forms.ModelForm):
-    """Form for creating and editing customers"""
+    """Form for creating and editing customers with enhanced name fields and country selection"""
     
     class Meta:
         model = Customer
         fields = [
-            'first_name', 'last_name', 'email_primary', 'email_secondary',
-            'phone_primary', 'phone_secondary', 'fax',
-            'whatsapp_number', 'wechat_id', 'customer_type', 'status',
+            # Enhanced name fields
+            'first_name', 'middle_name', 'last_name', 'preferred_name', 'name_suffix',
+            
+            # Contact information
+            'email_primary', 'email_secondary',
+            'phone_primary', 'phone_primary_country_code',
+            'phone_secondary', 'phone_secondary_country_code', 
+            'fax', 'fax_country_code',
+            'whatsapp_number', 'whatsapp_country_code',
+            'wechat_id',
+            
+            # Geographic
+            'country_region',
+            
+            # Professional
             'company_primary', 'position_primary', 'company_secondary', 'position_secondary',
-            'company_website', 'address_primary', 'address_secondary', 'country_region',
+            'company_website', 'address_primary', 'address_secondary',
+            
+            # Social media
             'linkedin_profile', 'facebook_profile', 'twitter_handle', 'instagram_handle',
-            'preferred_learning_format', 'interests', 'marketing_consent'
+            
+            # CRM fields
+            'customer_type', 'status', 'preferred_learning_format', 'interests', 'marketing_consent'
         ]
         widgets = {
             'first_name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter first name'
+                'placeholder': 'Enter first name (required)'
+            }),
+            'middle_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter middle name(s) (optional)'
             }),
             'last_name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter last name'
+                'placeholder': 'Enter last name (required)'
+            }),
+            'preferred_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Nickname or preferred name (optional)'
+            }),
+            'name_suffix': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Jr., Sr., III, etc. (optional)'
             }),
             'email_primary': forms.EmailInput(attrs={
                 'class': 'form-control',
@@ -35,19 +63,44 @@ class CustomerForm(forms.ModelForm):
             }),
             'phone_primary': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter primary phone number'
+                'placeholder': 'Enter phone number (without country code)'
+            }),
+            'phone_primary_country_code': forms.TextInput(attrs={
+                'class': 'form-control country-code',
+                'placeholder': '+1',
+                'readonly': True
             }),
             'phone_secondary': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter secondary phone number (optional)'
+                'placeholder': 'Enter secondary phone number (without country code)'
+            }),
+            'phone_secondary_country_code': forms.TextInput(attrs={
+                'class': 'form-control country-code',
+                'placeholder': '+1',
+                'readonly': True
             }),
             'fax': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter fax number (optional)'
+                'placeholder': 'Enter fax number (without country code)'
+            }),
+            'fax_country_code': forms.TextInput(attrs={
+                'class': 'form-control country-code',
+                'placeholder': '+1',
+                'readonly': True
             }),
             'whatsapp_number': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter WhatsApp number'
+                'placeholder': 'Enter WhatsApp number (without country code)'
+            }),
+            'whatsapp_country_code': forms.TextInput(attrs={
+                'class': 'form-control country-code',
+                'placeholder': '+1',
+                'readonly': True
+            }),
+            'country_region': forms.Select(attrs={
+                'class': 'form-select',
+                'id': 'id_country_region',
+                'onchange': 'updateCountryCodes(this.value)'
             }),
             'wechat_id': forms.TextInput(attrs={
                 'class': 'form-control',
