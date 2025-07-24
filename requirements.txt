@@ -1,103 +1,46 @@
-# requirements.txt
-Django==4.2.7
+# Core Django dependencies
+Django==4.2.16
 djangorestframework==3.14.0
-django-filter==23.3
+django-filter==23.5
 django-cors-headers==4.3.1
-psycopg2-binary==2.9.7
+
+# Database
+psycopg2-binary==2.9.9
+
+# Task queue
 celery==5.3.4
 redis==5.0.1
+
+# Configuration
 python-decouple==3.8
+
+# HTTP requests
 requests==2.31.0
-Pillow==10.0.1
+
+# Image processing
+Pillow==10.4.0
+
+# Production server
 gunicorn==21.2.0
+
+# Static files
 whitenoise==6.6.0
 
-# Optional for enhanced features
-sendgrid==6.10.0
-twilio==8.10.0
-python-telegram-bot==20.6
+# Communication services (optional)
+sendgrid==6.11.0
+twilio==8.12.1
+python-telegram-bot==20.8
 
-# Development dependencies
-pytest==7.4.3
-pytest-django==4.7.0
-black==23.9.1
+# Development and testing
+pytest==7.4.4
+pytest-django==4.8.0
+black==23.12.1
 flake8==6.1.0
 
-# management/commands/load_sample_data.py
-from django.core.management.base import BaseCommand
-from django.utils import timezone
-from datetime import timedelta
-from crm.models import Customer, Course, Conference, Enrollment
-import random
-
-class Command(BaseCommand):
-    help = 'Load sample data for testing the CRM system'
-
-    def add_arguments(self, parser):
-        parser.add_argument(
-            '--customers',
-            type=int,
-            default=50,
-            help='Number of sample customers to create'
-        )
-        parser.add_argument(
-            '--courses',
-            type=int,
-            default=10,
-            help='Number of sample courses to create'
-        )
-
-    def handle(self, *args, **options):
-        self.stdout.write('Loading sample data...')
-        
-        # Create sample customers
-        customers_count = options['customers']
-        courses_count = options['courses']
-        
-        self.create_sample_customers(customers_count)
-        self.create_sample_courses(courses_count)
-        self.create_sample_conferences()
-        self.create_sample_enrollments()
-        
-        self.stdout.write(
-            self.style.SUCCESS(
-                f'Successfully loaded sample data: '
-                f'{customers_count} customers, {courses_count} courses'
-            )
-        )
-
-    def create_sample_customers(self, count):
-        sample_customers = [
-            {
-                'first_name': 'Alice',
-                'last_name': 'Johnson',
-                'email': 'alice.johnson@email.com',
-                'phone': '+1234567890',
-                'whatsapp_number': '+1234567890',
-                'customer_type': 'individual',
-                'status': 'active',
-                'company': 'Tech Corp',
-                'position': 'Software Engineer',
-                'preferred_communication': 'email',
-                'interests': 'Python, Data Science, Machine Learning'
-            },
-            {
-                'first_name': 'Bob',
-                'last_name': 'Smith',
-                'email': 'bob.smith@email.com',
-                'phone': '+1234567891',
-                'whatsapp_number': '+1234567891',
-                'customer_type': 'corporate',
-                'status': 'active',
-                'company': 'Innovation Inc',
-                'position': 'CTO',
-                'preferred_communication': 'whatsapp',
-                'interests': 'Leadership, Technology Strategy'
-            },
-            {
-                'first_name': 'Carol',
-                'last_name': 'Williams',
-                'email': 'carol.williams@email.com',
+# Security updates
+cryptography>=41.0.7
+urllib3>=2.0.7
+certifi>=2023.7.22
                 'phone': '+1234567892',
                 'wechat_id': 'carol_w_2023',
                 'customer_type': 'student',
