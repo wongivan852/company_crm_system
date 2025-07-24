@@ -45,65 +45,31 @@ class CustomerForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Enter fax number (optional)'
             }),
+                'class': 'form-control',
+                'placeholder': '+1234567890'
+            }),
             'whatsapp_number': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter WhatsApp number'
+                'placeholder': '+1234567890'
             }),
             'wechat_id': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter WeChat ID'
+                'placeholder': 'WeChat ID'
             }),
             'customer_type': forms.Select(attrs={'class': 'form-control'}),
             'status': forms.Select(attrs={'class': 'form-control'}),
-            'company_primary': forms.TextInput(attrs={
+            'company': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter primary company'
+                'placeholder': 'Company name'
             }),
-            'position_primary': forms.TextInput(attrs={
+            'position': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter primary position'
+                'placeholder': 'Job title'
             }),
-            'company_secondary': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter secondary company (optional)'
-            }),
-            'position_secondary': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter secondary position (optional)'
-            }),
-            'company_website': forms.URLInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter company website URL'
-            }),
-            'address_primary': forms.Textarea(attrs={
+            'address': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 3,
-                'placeholder': 'Enter primary address'
-            }),
-            'address_secondary': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'Enter secondary address (optional)'
-            }),
-            'country_region': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter country/region'
-            }),
-            'linkedin_profile': forms.URLInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter LinkedIn profile URL'
-            }),
-            'facebook_profile': forms.URLInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter Facebook profile URL'
-            }),
-            'twitter_handle': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter Twitter/X handle (without @)'
-            }),
-            'instagram_handle': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter Instagram handle (without @)'
+                'placeholder': 'Full address'
             }),
             'preferred_learning_format': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -111,32 +77,29 @@ class CustomerForm(forms.ModelForm):
             }),
             'interests': forms.Textarea(attrs={
                 'class': 'form-control',
-                'rows': 4,
-                'placeholder': 'Enter interests (comma-separated)'
+                'rows': 3,
+                'placeholder': 'Comma-separated interests'
             }),
-            'marketing_consent': forms.CheckboxInput(attrs={'class': 'form-check-input'})
+            'preferred_communication': forms.Select(attrs={'class': 'form-control'}),
+            'marketing_consent': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
-
-class CustomerCommunicationPreferenceForm(forms.ModelForm):
-    """Form for managing customer communication preferences"""
-    
-    class Meta:
-        model = CustomerCommunicationPreference
-        fields = ['communication_type', 'priority', 'is_active', 'notes']
-        widgets = {
-            'communication_type': forms.Select(attrs={'class': 'form-control'}),
-            'priority': forms.Select(attrs={'class': 'form-control'}),
-            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'notes': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'e.g., Work hours only, Weekends preferred'
-            })
-        }
-
+    def clean_email(self):
+        """Validate email uniqueness"""
+        email = self.cleaned_data.get('email')
+        if email:
+            # Check if email exists for other customers (excluding current instance)
+            existing = Customer.objects.filter(email=email)
+            if self.instance:
+                existing = existing.exclude(id=self.instance.id)
+            
+            if existing.exists():
+                raise forms.ValidationError("A customer with this email already exists.")
+        
+        return email
 
 class EnrollmentForm(forms.ModelForm):
-    """Form for course enrollment"""
+    """Form for enrolling customers in courses"""
     
     class Meta:
         model = Enrollment
@@ -149,17 +112,24 @@ class EnrollmentForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 3,
-                'placeholder': 'Additional notes about enrollment'
-            })
+                'placeholder': 'Additional notes'
+            }),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Only show active courses
+        self.fields['course'].queryset = Course.objects.filter(is_active=True)
+        
+        # Improve display of customer choices
+        self.fields['customer'].queryset = Customer.objects.all()
+        self.fields['customer'].label_from_instance = lambda obj: f"{obj.first_name} {obj.last_name} ({obj.email})"
 
 class MessageForm(forms.Form):
     """Form for sending messages to customers"""
     
     CHANNEL_CHOICES = [
-        ('email_primary', 'Primary Email'),
-        ('email_secondary', 'Secondary Email'),
+        ('email', 'Email'),
         ('whatsapp', 'WhatsApp'),
         ('wechat', 'WeChat'),
     ]
@@ -170,59 +140,57 @@ class MessageForm(forms.Form):
     )
     subject = forms.CharField(
         max_length=200,
+        required=False,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Enter message subject'
+            'placeholder': 'Message subject (for email)'
         })
     )
     content = forms.CharField(
         widget=forms.Textarea(attrs={
             'class': 'form-control',
-            'rows': 6,
-            'placeholder': 'Enter your message content'
+            'rows': 5,
+            'placeholder': 'Enter your message here...'
         })
     )
-
 
 class BulkMessageForm(forms.Form):
     """Form for sending bulk messages"""
     
     CHANNEL_CHOICES = [
-        ('email_primary', 'Primary Email'),
+        ('email', 'Email'),
         ('whatsapp', 'WhatsApp'),
         ('wechat', 'WeChat'),
     ]
     
-    customer_type = forms.MultipleChoiceField(
-        choices=Customer.CUSTOMER_TYPES,
-        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
-        required=False
+    customer_filter = forms.ChoiceField(
+        choices=[
+            ('all', 'All Customers'),
+            ('active', 'Active Customers'),
+            ('prospects', 'Prospects'),
+            ('marketing_consent', 'Marketing Consent Only'),
+        ],
+        widget=forms.Select(attrs={'class': 'form-control'})
     )
-    status = forms.MultipleChoiceField(
-        choices=Customer.STATUS_CHOICES,
-        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
-        required=False
-    )
-    marketing_consent_only = forms.BooleanField(
-        initial=True,
-        required=False,
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
-    )
+    
     channel = forms.ChoiceField(
         choices=CHANNEL_CHOICES,
         widget=forms.Select(attrs={'class': 'form-control'})
     )
+    
     subject = forms.CharField(
         max_length=200,
+        required=False,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Enter message subject'
+            'placeholder': 'Message subject (for email)'
         })
     )
+    
     content = forms.CharField(
         widget=forms.Textarea(attrs={
             'class': 'form-control',
             'rows': 8,
-            'placeholder': 'Enter your message content'
+            'placeholder': 'Enter your message here...'
         })
     )
