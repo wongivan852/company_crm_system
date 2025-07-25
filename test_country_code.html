@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Country Code Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .form-group { margin: 10px 0; }
+        label { display: block; margin-bottom: 5px; }
+        select, input { padding: 8px; margin: 5px 0; }
+        .test-button { padding: 10px 20px; margin: 10px 5px; background: #007bff; color: white; border: none; cursor: pointer; }
+        .country-code { background: yellow; }
+        .debug { background: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Country Code Test</h1>
+    
+    <div class="form-group">
+        <label for="id_country_region">Country/Region:</label>
+        <select id="id_country_region" onchange="updateCountryCodes(this.value)">
+            <option value="">Select a country</option>
+            <option value="CN">China</option>
+            <option value="HK">Hong Kong</option>
+            <option value="TW">Taiwan</option>
+            <option value="US">United States</option>
+            <option value="GB">United Kingdom</option>
+            <option value="JP">Japan</option>
+            <option value="AU">Australia</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="id_phone_primary_country_code">Primary Phone Country Code:</label>
+        <input type="text" id="id_phone_primary_country_code" name="phone_primary_country_code" 
+               class="country-code" value="+1" placeholder="+1">
+    </div>
+    
+    <div class="form-group">
+        <label for="id_phone_secondary_country_code">Secondary Phone Country Code:</label>
+        <input type="text" id="id_phone_secondary_country_code" name="phone_secondary_country_code" 
+               class="country-code" value="+1" placeholder="+1">
+    </div>
+    
+    <div>
+        <button class="test-button" onclick="testCountryCode()">Test Function</button>
+        <button class="test-button" onclick="quickFix()">Quick Fix (CN)</button>
+        <button class="test-button" onclick="manualTest()">Manual Test</button>
+    </div>
+    
+    <div id="debug-output" class="debug">
+        <h3>Debug Output:</h3>
+        <div id="debug-content">Click a button to run tests...</div>
+    </div>
+
+    <script>
+        // Country code mapping
+        const countryCodeMap = {
+            'CN': '+86', 'HK': '+852', 'TW': '+886', 'MO': '+853',
+            'SG': '+65', 'MY': '+60', 'TH': '+66', 'VN': '+84',
+            'PH': '+63', 'ID': '+62', 'KR': '+82', 'JP': '+81',
+            'IN': '+91', 'AU': '+61', 'NZ': '+64',
+            'GB': '+44', 'DE': '+49', 'FR': '+33', 'IT': '+39',
+            'ES': '+34', 'NL': '+31', 'BE': '+32', 'CH': '+41',
+            'AT': '+43', 'SE': '+46', 'NO': '+47', 'DK': '+45', 'FI': '+358',
+            'US': '+1', 'CA': '+1', 'MX': '+52', 'BR': '+55',
+            'AR': '+54', 'CL': '+56', 'CO': '+57', 'PE': '+51',
+            'AE': '+971', 'SA': '+966', 'IL': '+972', 'ZA': '+27',
+            'EG': '+20', 'KE': '+254', 'NG': '+234',
+            'RU': '+7', 'TR': '+90'
+        };
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM Content Loaded - Initializing test page');
+            
+            // Find the country dropdown
+            const countrySelect = document.getElementById('id_country_region');
+            console.log('🌍 Country select found:', !!countrySelect);
+            
+            if (countrySelect) {
+                // Add the event listener
+                countrySelect.addEventListener('change', function(event) {
+                    console.log('🔄 Country changed!', event.target.value);
+                    const selectedCountry = event.target.value;
+                    
+                    if (selectedCountry) {
+                        updateCountryCodes(selectedCountry);
+                    } else {
+                        console.log('⚠️ No country selected');
+                    }
+                });
+                console.log('👂 Event listener attached to country select');
+            } else {
+                console.log('❌ Country select field not found!');
+            }
+        });
+
+        function updateCountryCodes(countryCode) {
+            console.log('🔄 START updateCountryCodes with:', countryCode);
+            
+            if (!countryCode) {
+                console.log('❌ No country code provided');
+                return;
+            }
+            
+            const phoneCode = countryCodeMap[countryCode] || '+1';
+            console.log('📞 Mapped phone code:', phoneCode);
+            
+            // Try multiple ways to find the primary phone country code field
+            let primaryField = null;
+            
+            // Method 1: Direct ID lookup
+            primaryField = document.getElementById('id_phone_primary_country_code');
+            console.log('🎯 Method 1 - Direct ID lookup:', !!primaryField);
+            
+            // Method 2: Query selector
+            if (!primaryField) {
+                primaryField = document.querySelector('input[name="phone_primary_country_code"]');
+                console.log('🎯 Method 2 - Name selector:', !!primaryField);
+            }
+            
+            // Method 3: Find by class
+            if (!primaryField) {
+                const countryCodeFields = document.querySelectorAll('.country-code');
+                console.log('🎯 Method 3 - Found country-code fields:', countryCodeFields.length);
+                if (countryCodeFields.length > 0) {
+                    primaryField = countryCodeFields[0]; // Take the first one (should be primary)
+                    console.log('🎯 Using first country-code field as primary');
+                }
+            }
+            
+            // Update the field if found
+            if (primaryField) {
+                console.log('✅ Primary field found, updating...');
+                console.log('📝 Before update:', primaryField.value);
+                primaryField.value = phoneCode;
+                console.log('📝 After update:', primaryField.value);
+                
+                // Trigger events
+                primaryField.dispatchEvent(new Event('input', { bubbles: true }));
+                primaryField.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                // Visual feedback
+                primaryField.style.backgroundColor = '#90EE90';
+                setTimeout(() => {
+                    primaryField.style.backgroundColor = 'yellow';
+                }, 1000);
+            } else {
+                console.log('❌ PRIMARY FIELD NOT FOUND!');
+                console.log('🔍 Available inputs with phone in name or id:');
+                document.querySelectorAll('input').forEach(input => {
+                    if (input.name?.includes('phone') || input.id?.includes('phone')) {
+                        console.log(`  - ID: "${input.id}", Name: "${input.name}", Value: "${input.value}"`);
+                    }
+                });
+            }
+            
+            console.log('🏁 END updateCountryCodes');
+        }
+
+        // Simple test function
+        function testCountryCode() {
+            console.log('🧪 === TESTING COUNTRY CODE FUNCTIONALITY ===');
+            
+            const debugContent = document.getElementById('debug-content');
+            let output = '';
+            
+            // Check country dropdown
+            const countrySelect = document.getElementById('id_country_region');
+            output += 'Country dropdown: ' + (countrySelect ? 'FOUND' : 'NOT FOUND') + '<br>';
+            if (countrySelect) {
+                output += 'Current value: ' + countrySelect.value + '<br>';
+                output += 'Selected option: ' + (countrySelect.options[countrySelect.selectedIndex]?.text || 'None') + '<br>';
+            }
+            
+            // Check primary phone field
+            const primaryField = document.getElementById('id_phone_primary_country_code');
+            output += 'Primary phone field: ' + (primaryField ? 'FOUND' : 'NOT FOUND') + '<br>';
+            if (primaryField) {
+                output += 'Current value: ' + primaryField.value + '<br>';
+                output += 'Field type: ' + primaryField.type + '<br>';
+                output += 'Field class: ' + primaryField.className + '<br>';
+            }
+            
+            // Test manual update
+            if (primaryField) {
+                output += '<br>🔧 Testing manual update...<br>';
+                const oldValue = primaryField.value;
+                primaryField.value = '+86';
+                output += 'Changed from ' + oldValue + ' to ' + primaryField.value + '<br>';
+                
+                // Trigger events
+                primaryField.dispatchEvent(new Event('input'));
+                primaryField.dispatchEvent(new Event('change'));
+            }
+            
+            debugContent.innerHTML = output;
+            console.log('🧪 === TEST COMPLETE ===');
+        }
+
+        // Quick fix function
+        function quickFix() {
+            console.log('🔧 === QUICK FIX ATTEMPT ===');
+            
+            // Set country to China and update phone code
+            const countrySelect = document.getElementById('id_country_region');
+            const primaryField = document.getElementById('id_phone_primary_country_code');
+            
+            if (countrySelect && primaryField) {
+                countrySelect.value = 'CN';
+                primaryField.value = '+86';
+                console.log('✅ Set country to CN and phone code to +86');
+                
+                // Visual feedback
+                primaryField.style.backgroundColor = '#90EE90';
+                setTimeout(() => {
+                    primaryField.style.backgroundColor = 'yellow';
+                }, 2000);
+                
+                const debugContent = document.getElementById('debug-content');
+                debugContent.innerHTML = '✅ Quick fix applied: Country = CN, Phone = +86';
+            } else {
+                console.log('❌ Could not find required fields');
+                const debugContent = document.getElementById('debug-content');
+                debugContent.innerHTML = '❌ Could not find required fields';
+            }
+        }
+
+        function manualTest() {
+            console.log('🔧 Manual Test: Setting HK');
+            updateCountryCodes('HK');
+            
+            const debugContent = document.getElementById('debug-content');
+            debugContent.innerHTML = '🧪 Manual test: Called updateCountryCodes("HK")';
+        }
+    </script>
+</body>
+</html>

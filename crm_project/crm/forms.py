@@ -8,8 +8,8 @@ class CustomerForm(forms.ModelForm):
     class Meta:
         model = Customer
         fields = [
-            # Enhanced name fields
-            'first_name', 'middle_name', 'last_name', 'preferred_name', 'name_suffix',
+            # Essential name fields only (preferred_name removed)
+            'first_name', 'middle_name', 'last_name', 'name_suffix',
             
             # Contact information
             'email_primary', 'email_secondary',
@@ -19,18 +19,21 @@ class CustomerForm(forms.ModelForm):
             'whatsapp_number', 'whatsapp_country_code',
             'wechat_id',
             
-            # Geographic
-            'country_region',
+            # Geographic and Address (simplified)
+            'country_region', 'address_primary', 'address_secondary',
             
-            # Professional
+            # Professional (simplified)
             'company_primary', 'position_primary', 'company_secondary', 'position_secondary',
-            'company_website', 'address_primary', 'address_secondary',
+            'company_website',
             
             # Social media
             'linkedin_profile', 'facebook_profile', 'twitter_handle', 'instagram_handle',
             
+            # Communication preferences
+            'preferred_communication_method',
+            
             # CRM fields
-            'customer_type', 'status', 'preferred_learning_format', 'interests', 'marketing_consent'
+            'customer_type', 'status', 'preferred_learning_format', 'interests'
         ]
         widgets = {
             'first_name': forms.TextInput(attrs={
@@ -45,13 +48,9 @@ class CustomerForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Enter last name (required)'
             }),
-            'preferred_name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Nickname or preferred name (optional)'
-            }),
             'name_suffix': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Jr., Sr., III, etc. (optional)'
+                'placeholder': 'Other name, nickname, or alias (optional)'
             }),
             'email_primary': forms.EmailInput(attrs={
                 'class': 'form-control',
@@ -68,7 +67,7 @@ class CustomerForm(forms.ModelForm):
             'phone_primary_country_code': forms.TextInput(attrs={
                 'class': 'form-control country-code',
                 'placeholder': '+1',
-                'readonly': True
+                'title': 'Auto-updated when country is selected, but you can manually change it'
             }),
             'phone_secondary': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -77,7 +76,7 @@ class CustomerForm(forms.ModelForm):
             'phone_secondary_country_code': forms.TextInput(attrs={
                 'class': 'form-control country-code',
                 'placeholder': '+1',
-                'readonly': True
+                'title': 'Can be different from primary phone country code'
             }),
             'fax': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -86,7 +85,7 @@ class CustomerForm(forms.ModelForm):
             'fax_country_code': forms.TextInput(attrs={
                 'class': 'form-control country-code',
                 'placeholder': '+1',
-                'readonly': True
+                'title': 'Auto-updated when country is selected, but you can manually change it'
             }),
             'whatsapp_number': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -95,7 +94,7 @@ class CustomerForm(forms.ModelForm):
             'whatsapp_country_code': forms.TextInput(attrs={
                 'class': 'form-control country-code',
                 'placeholder': '+1',
-                'readonly': True
+                'title': 'Auto-updated when country is selected, but you can manually change it'
             }),
             'country_region': forms.Select(attrs={
                 'class': 'form-select',
@@ -138,10 +137,6 @@ class CustomerForm(forms.ModelForm):
                 'rows': 3,
                 'placeholder': 'Enter secondary address (optional)'
             }),
-            'country_region': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter country/region'
-            }),
             'linkedin_profile': forms.URLInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Enter LinkedIn profile URL'
@@ -167,7 +162,9 @@ class CustomerForm(forms.ModelForm):
                 'rows': 4,
                 'placeholder': 'Enter interests (comma-separated)'
             }),
-            'marketing_consent': forms.CheckboxInput(attrs={'class': 'form-check-input'})
+            'preferred_communication_method': forms.Select(attrs={
+                'class': 'form-select'
+            }),
         }
 
 

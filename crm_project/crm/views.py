@@ -1,12 +1,15 @@
 # views.py
 from rest_framework import viewsets, status, filters
-from rest_framework.decorators import action
+from rest_framework.decorators import action, throttle_classes
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseForbidden
 from django.contrib import messages
 from django.shortcuts import render, redirect
+from django.conf import settings
+from django.contrib.auth.decorators import login_required
 import csv
 import datetime
 from .models import Customer, Course, Enrollment, Conference, ConferenceRegistration, CommunicationLog
@@ -16,6 +19,7 @@ from .serializers import (
 )
 from .communication_services import CommunicationManager
 from .forms import CustomerForm
+from .utils import generate_customer_csv_response, validate_uat_access
 
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all()
@@ -27,6 +31,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
     
     @action(detail=True, methods=['post'])
+    @throttle_classes([UserRateThrottle])
     def send_message(self, request, pk=None):
         """Send message to customer via their preferred channel"""
         customer = self.get_object()
@@ -60,62 +65,12 @@ class CustomerViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
+    @throttle_classes([UserRateThrottle])
     def export_csv(self, request):
-        """Export all customer data to CSV"""
-        response = HttpResponse(content_type='text/csv')
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        response['Content-Disposition'] = f'attachment; filename="customers_export_{timestamp}.csv"'
-        
-        writer = csv.writer(response)
-        
-        # CSV Headers - matching actual model fields
-        headers = [
-            'ID', 'First Name', 'Last Name', 'Primary Email', 'Secondary Email',
-            'Primary Phone', 'Secondary Phone', 'WhatsApp Number', 'Fax',
-            'Primary Company', 'Primary Position', 'Secondary Company', 'Secondary Position',
-            'Primary Address', 'Secondary Address', 'Country/Region', 'Company Website',
-            'LinkedIn Profile', 'Facebook Profile', 'Twitter Handle', 'Instagram Handle', 'WeChat ID',
-            'Customer Type', 'Status', 'Preferred Learning Format', 'Interests',
-            'Marketing Consent', 'Created At', 'Updated At'
-        ]
-        writer.writerow(headers)
-        
-        # Export customer data
-        for customer in Customer.objects.all():
-            row = [
-                customer.id,
-                customer.first_name,
-                customer.last_name,
-                customer.email_primary,
-                customer.email_secondary,
-                customer.phone_primary,
-                customer.phone_secondary,
-                customer.whatsapp_number,
-                customer.fax,
-                customer.company_primary,
-                customer.position_primary,
-                customer.company_secondary,
-                customer.position_secondary,
-                customer.address_primary,
-                customer.address_secondary,
-                customer.country_region,
-                customer.company_website,
-                customer.linkedin_profile,
-                customer.facebook_profile,
-                customer.twitter_handle,
-                customer.instagram_handle,
-                customer.wechat_id,
-                customer.customer_type,
-                customer.status,
-                customer.preferred_learning_format,
-                customer.interests,
-                customer.marketing_consent,
-                customer.created_at.strftime('%Y-%m-%d %H:%M:%S') if customer.created_at else '',
-                customer.updated_at.strftime('%Y-%m-%d %H:%M:%S') if customer.updated_at else ''
-            ]
-            writer.writerow(row)
-        
-        return response
+        """Export customer data to CSV"""
+        # Apply any filtering from the viewset
+        queryset = self.filter_queryset(self.get_queryset())
+        return generate_customer_csv_response(queryset)
 
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
@@ -168,66 +123,32 @@ class CommunicationLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 # Traditional Django views for admin interface
+@login_required
 def export_customers_csv(request):
-    """Export all customer data to CSV - traditional Django view"""
-    response = HttpResponse(content_type='text/csv')
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    response['Content-Disposition'] = f'attachment; filename="customers_export_{timestamp}.csv"'
-    
-    writer = csv.writer(response)
-    
-    # CSV Headers - matching actual model fields
-    headers = [
-        'ID', 'First Name', 'Last Name', 'Primary Email', 'Secondary Email',
-        'Primary Phone', 'Secondary Phone', 'WhatsApp Number', 'Fax',
-        'Primary Company', 'Primary Position', 'Secondary Company', 'Secondary Position',
-        'Primary Address', 'Secondary Address', 'Country/Region', 'Company Website',
-        'LinkedIn Profile', 'Facebook Profile', 'Twitter Handle', 'Instagram Handle', 'WeChat ID',
-        'Customer Type', 'Status', 'Preferred Learning Format', 'Interests',
-        'Marketing Consent', 'Created At', 'Updated At'
-    ]
-    writer.writerow(headers)
-    
-    # Export customer data
-    for customer in Customer.objects.all():
-        row = [
-            customer.id,
-            customer.first_name,
-            customer.last_name,
-            customer.email_primary,
-            customer.email_secondary,
-            customer.phone_primary,
-            customer.phone_secondary,
-            customer.whatsapp_number,
-            customer.fax,
-            customer.company_primary,
-            customer.position_primary,
-            customer.company_secondary,
-            customer.position_secondary,
-            customer.address_primary,
-            customer.address_secondary,
-            customer.country_region,
-            customer.company_website,
-            customer.linkedin_profile,
-            customer.facebook_profile,
-            customer.twitter_handle,
-            customer.instagram_handle,
-            customer.wechat_id,
-            customer.customer_type,
-            customer.status,
-            customer.preferred_learning_format,
-            customer.interests,
-            customer.marketing_consent,
-            customer.created_at.strftime('%Y-%m-%d %H:%M:%S') if customer.created_at else '',
-            customer.updated_at.strftime('%Y-%m-%d %H:%M:%S') if customer.updated_at else ''
-        ]
-        writer.writerow(row)
-    
-    return response
+    """Export all customer data to CSV - requires authentication"""
+    return generate_customer_csv_response()
+
+
+def test_dashboard(request):
+    """Simple dashboard for testing (no security)"""
+    from .models import Course, Enrollment
+    context = {
+        'total_customers': Customer.objects.count(),
+        'active_customers': Customer.objects.filter(status='active').count(),
+        'recent_customers': Customer.objects.order_by('-created_at')[:5],
+        'total_courses': Course.objects.filter(is_active=True).count() if hasattr(Course, 'objects') else 0,
+        'total_enrollments': Enrollment.objects.count() if hasattr(Enrollment, 'objects') else 0,
+    }
+    return render(request, 'crm/dashboard.html', context)
 
 
 def customer_dashboard(request):
-    """Simple dashboard view for UAT testing"""
+    """Simple dashboard view for UAT testing (SECURED)"""
+    # Validate UAT access
+    is_valid, error_message = validate_uat_access(request)
+    if not is_valid:
+        return HttpResponseForbidden(error_message)
+    
     from .models import Course, Enrollment
     context = {
         'total_customers': Customer.objects.count(),
@@ -240,7 +161,12 @@ def customer_dashboard(request):
 
 
 def public_customer_list(request):
-    """Public customer list for UAT testing (no login required)"""
+    """Public customer list for UAT testing (SECURED)"""
+    # Validate UAT access
+    is_valid, error_message = validate_uat_access(request)
+    if not is_valid:
+        return HttpResponseForbidden(error_message)
+    
     customers = Customer.objects.all()
     
     # Search functionality
@@ -263,7 +189,12 @@ def public_customer_list(request):
 
 
 def public_customer_create(request):
-    """Public customer creation for UAT testing"""
+    """Public customer creation for UAT testing (SECURED)"""
+    # Validate UAT access
+    is_valid, error_message = validate_uat_access(request)
+    if not is_valid:
+        return HttpResponseForbidden(error_message)
+    
     if request.method == 'POST':
         form = CustomerForm(request.POST)
         if form.is_valid():
@@ -274,3 +205,22 @@ def public_customer_create(request):
         form = CustomerForm()
     
     return render(request, 'crm/customer_form.html', {'form': form, 'title': 'Add New Customer'})
+
+
+def test_customer_create(request):
+    """Simple customer creation for testing (no security)"""
+    if request.method == 'POST':
+        form = CustomerForm(request.POST)
+        if form.is_valid():
+            customer = form.save()
+            messages.success(request, f'Customer {customer.first_name} {customer.last_name} created successfully!')
+            return redirect('crm:test_customer_create')
+    else:
+        form = CustomerForm()
+    
+    return render(request, 'crm/customer_form.html', {'form': form, 'title': 'Test Add Customer'})
+
+
+def test_export_csv(request):
+    """Test CSV export for development (no security)"""
+    return generate_customer_csv_response()

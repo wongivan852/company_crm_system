@@ -27,6 +27,28 @@ class Customer(models.Model):
     preferred_name = models.CharField(max_length=100, blank=True, help_text="Nickname or preferred name")
     name_suffix = models.CharField(max_length=20, blank=True, help_text="Jr., Sr., III, etc.")
     
+    # Additional Names and Identity
+    maiden_name = models.CharField(max_length=100, blank=True, help_text="Maiden name (if applicable)")
+    other_names = models.CharField(max_length=200, blank=True, help_text="Other names, aliases, or previous names")
+    title = models.CharField(max_length=50, blank=True, help_text="Title (Dr., Prof., Mr., Ms., etc.)")
+    
+    # Personal Details
+    GENDER_CHOICES = [
+        ('M', 'Male'),
+        ('F', 'Female'),
+        ('O', 'Other'),
+        ('P', 'Prefer not to say'),
+    ]
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True, help_text="Gender")
+    date_of_birth = models.DateField(blank=True, null=True, help_text="Date of birth")
+    nationality = models.CharField(max_length=100, blank=True, help_text="Nationality")
+    
+    # Emergency Contact
+    emergency_contact_name = models.CharField(max_length=200, blank=True, help_text="Emergency contact full name")
+    emergency_contact_relationship = models.CharField(max_length=100, blank=True, help_text="Relationship to emergency contact")
+    emergency_contact_phone = models.CharField(max_length=20, blank=True, help_text="Emergency contact phone number")
+    emergency_contact_email = models.EmailField(blank=True, help_text="Emergency contact email")
+    
     # Multiple Email Addresses
     email_primary = models.EmailField(unique=True, validators=[EmailValidator()], help_text="Primary email address")
     email_secondary = models.EmailField(blank=True, validators=[EmailValidator()], help_text="Secondary email address")
@@ -144,12 +166,48 @@ class Customer(models.Model):
     address_primary = models.TextField(blank=True, help_text="Primary address (Home/Office)")
     address_secondary = models.TextField(blank=True, help_text="Secondary address (Mailing/Alternative)")
     
+    # Individual Address Components for Primary Address
+    address = models.CharField(max_length=500, blank=True, help_text="Street address")
+    city = models.CharField(max_length=100, blank=True, help_text="City")
+    state_province = models.CharField(max_length=100, blank=True, help_text="State or Province")
+    postal_code = models.CharField(max_length=20, blank=True, help_text="Postal/ZIP code")
+    
     # Learning preferences
     preferred_learning_format = models.CharField(max_length=50, blank=True)
     interests = models.TextField(blank=True, help_text="Comma-separated interests")
     
-    # Marketing Consent
-    marketing_consent = models.BooleanField(default=False)
+    # Additional Professional Information
+    education_level = models.CharField(max_length=100, blank=True, help_text="Highest education level")
+    profession = models.CharField(max_length=100, blank=True, help_text="Current profession/occupation")
+    years_of_experience = models.PositiveIntegerField(blank=True, null=True, help_text="Years of professional experience")
+    
+    # Communication Preferences
+    COMMUNICATION_PREFERENCES = [
+        ('email', 'Email'),
+        ('phone', 'Phone'),
+        ('whatsapp', 'WhatsApp'),
+        ('wechat', 'WeChat'),
+        ('sms', 'SMS'),
+    ]
+    preferred_communication_method = models.CharField(
+        max_length=20, 
+        choices=COMMUNICATION_PREFERENCES, 
+        default='email',
+        help_text="Preferred method of communication"
+    )
+    
+    # Marketing and Privacy Consent
+    marketing_consent = models.BooleanField(default=False, help_text="Consent to receive marketing communications")
+    data_processing_consent = models.BooleanField(default=True, help_text="Consent to data processing")
+    newsletter_subscription = models.BooleanField(default=False, help_text="Subscribe to newsletter")
+    
+    # Additional Notes
+    internal_notes = models.TextField(blank=True, help_text="Internal notes (not visible to customer)")
+    special_requirements = models.TextField(blank=True, help_text="Special requirements or accommodations")
+    
+    # System Fields
+    source = models.CharField(max_length=100, blank=True, help_text="How customer found us")
+    referral_source = models.CharField(max_length=100, blank=True, help_text="Referral source if applicable")
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -159,9 +217,22 @@ class Customer(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        full_name = f"{self.first_name} {self.last_name}"
+        # Build name with title if available
+        name_parts = []
+        if self.title:
+            name_parts.append(self.title)
+        
         if self.preferred_name:
-            full_name = f"{self.preferred_name} ({full_name})"
+            name_parts.append(self.preferred_name)
+        else:
+            name_parts.append(self.first_name)
+        
+        name_parts.append(self.last_name)
+        
+        if self.name_suffix:
+            name_parts.append(self.name_suffix)
+        
+        full_name = ' '.join(name_parts)
         return f"{full_name} ({self.email_primary})"
     
     @property
@@ -188,18 +259,29 @@ class Customer(models.Model):
             return self.COUNTRY_CODE_MAP[self.country_region]
         return ''
     
-    def auto_set_country_codes(self):
+    def auto_set_country_codes(self, force_update=False):
         """Automatically set country codes based on selected country"""
         country_code = self.get_country_code()
         if country_code:
-            if not self.phone_primary_country_code and self.phone_primary:
-                self.phone_primary_country_code = country_code
+            # Always update primary phone country code when country changes
+            if not self.phone_primary_country_code or force_update:
+                if self.phone_primary:
+                    self.phone_primary_country_code = country_code
+            
+            # Only set secondary phone country code if empty (allow user override)
             if not self.phone_secondary_country_code and self.phone_secondary:
                 self.phone_secondary_country_code = country_code
+            
+            # Auto-set WhatsApp and fax if empty
             if not self.whatsapp_country_code and self.whatsapp_number:
                 self.whatsapp_country_code = country_code
             if not self.fax_country_code and self.fax:
                 self.fax_country_code = country_code
+            
+            # Auto-set emergency contact if empty
+            if not hasattr(self, 'emergency_contact_country_code'):
+                # This field doesn't exist yet, will be added in next enhancement
+                pass
     
     def save(self, *args, **kwargs):
         """Override save to automatically set country codes"""
@@ -226,10 +308,8 @@ class Customer(models.Model):
         """Backward compatibility property for primary position"""
         return self.position_primary
     
-    @property
-    def address(self):
-        """Backward compatibility property for primary address"""
-        return self.address_primary
+    # Note: address field is defined above as models.CharField
+    # Removed conflicting @property to avoid field/property collision
 
 
 class CustomerCommunicationPreference(models.Model):
