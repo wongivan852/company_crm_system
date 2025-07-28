@@ -9,7 +9,7 @@ class CustomerForm(forms.ModelForm):
         model = Customer
         fields = [
             # Essential name fields only (preferred_name removed)
-            'first_name', 'middle_name', 'last_name', 'name_suffix',
+            'first_name', 'middle_name', 'last_name', 'name_suffix', 'designation',
             
             # Contact information
             'email_primary', 'email_secondary',
@@ -51,6 +51,10 @@ class CustomerForm(forms.ModelForm):
             'name_suffix': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Other name, nickname, or alias (optional)'
+            }),
+            'designation': forms.Select(attrs={
+                'class': 'form-select',
+                'placeholder': 'Select professional or academic designation'
             }),
             'email_primary': forms.EmailInput(attrs={
                 'class': 'form-control',
@@ -125,7 +129,7 @@ class CustomerForm(forms.ModelForm):
             }),
             'company_website': forms.URLInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter company website URL'
+                'placeholder': 'https://www.example.com (include https:// or http://)'
             }),
             'address_primary': forms.Textarea(attrs={
                 'class': 'form-control',
@@ -139,11 +143,11 @@ class CustomerForm(forms.ModelForm):
             }),
             'linkedin_profile': forms.URLInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter LinkedIn profile URL'
+                'placeholder': 'https://www.linkedin.com/in/username'
             }),
             'facebook_profile': forms.URLInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter Facebook profile URL'
+                'placeholder': 'https://www.facebook.com/username'
             }),
             'twitter_handle': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -165,6 +169,13 @@ class CustomerForm(forms.ModelForm):
             'preferred_communication_method': forms.Select(attrs={
                 'class': 'form-select'
             }),
+        }
+        
+        help_texts = {
+            'linkedin_profile': 'Enter your LinkedIn username (e.g., john-doe) or full URL. The full URL will be added automatically.',
+            'facebook_profile': 'Enter your Facebook username (e.g., greengoldtv) or full URL. The full URL will be added automatically.',
+            'twitter_handle': 'Enter your Twitter/X handle without the @ symbol.',
+            'instagram_handle': 'Enter your Instagram handle without the @ symbol.',
         }
 
 

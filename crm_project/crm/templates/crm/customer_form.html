@@ -169,6 +169,12 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('🏁 Setting default country codes for:', countrySelect.value);
         updateCountryCodes(countrySelect.value);
     }
+    
+    // Setup URL auto-formatting for company website field
+    setupWebsiteUrlFormatting();
+    
+    // Setup URL auto-formatting for social media fields
+    setupSocialMediaUrlFormatting();
 });
 
 // Fallback initialization in case DOMContentLoaded doesn't fire
@@ -431,6 +437,120 @@ function forceFixCountryCodeField() {
     
     return primaryField;
 }
+
+// Setup URL auto-formatting for company website field
+function setupWebsiteUrlFormatting() {
+    const websiteField = document.getElementById('id_company_website');
+    if (websiteField) {
+        console.log('🌐 Setting up website URL auto-formatting');
+        
+        websiteField.addEventListener('blur', function() {
+            const value = this.value.trim();
+            
+            // Only process if there's a value and it doesn't already have a protocol
+            if (value && !value.match(/^https?:\/\//i)) {
+                // Auto-add https:// for common domain patterns
+                if (value.match(/^(www\.|[a-zA-Z0-9-]+\.)/)) {
+                    this.value = 'https://' + value;
+                    console.log('🌐 Auto-formatted URL from', value, 'to', this.value);
+                    
+                    // Add visual feedback
+                    this.style.backgroundColor = '#d4edda';
+                    setTimeout(() => {
+                        this.style.backgroundColor = '';
+                    }, 1500);
+                }
+            }
+        });
+        
+        // Also add helpful placeholder behavior on focus
+        websiteField.addEventListener('focus', function() {
+            if (!this.value) {
+                this.placeholder = 'Example: www.hkana.hk (https:// will be added automatically)';
+            }
+        });
+        
+        websiteField.addEventListener('blur', function() {
+            // Restore original placeholder
+            this.placeholder = 'https://www.example.com (include https:// or http://)';
+        });
+    }
+}
+
+// Setup URL auto-formatting for social media profile fields
+function setupSocialMediaUrlFormatting() {
+    // LinkedIn Profile Auto-formatting
+    const linkedinField = document.getElementById('id_linkedin_profile');
+    if (linkedinField) {
+        console.log('🔗 Setting up LinkedIn URL auto-formatting');
+        
+        linkedinField.addEventListener('blur', function() {
+            let value = this.value.trim();
+            if (value && !value.match(/^https?:\/\//i)) {
+                // Remove @ if present
+                value = value.replace(/^@/, '');
+                
+                // Check if it looks like a LinkedIn username
+                if (value && !value.includes('/')) {
+                    this.value = 'https://www.linkedin.com/in/' + value;
+                    console.log('🔗 Auto-formatted LinkedIn URL to', this.value);
+                    
+                    // Add visual feedback
+                    this.style.backgroundColor = '#d4edda';
+                    setTimeout(() => {
+                        this.style.backgroundColor = '';
+                    }, 1500);
+                }
+            }
+        });
+        
+        linkedinField.addEventListener('focus', function() {
+            if (!this.value) {
+                this.placeholder = 'Example: john-doe or @john-doe (full URL will be added automatically)';
+            }
+        });
+        
+        linkedinField.addEventListener('blur', function() {
+            this.placeholder = 'https://www.linkedin.com/in/username';
+        });
+    }
+    
+    // Facebook Profile Auto-formatting
+    const facebookField = document.getElementById('id_facebook_profile');
+    if (facebookField) {
+        console.log('📘 Setting up Facebook URL auto-formatting');
+        
+        facebookField.addEventListener('blur', function() {
+            let value = this.value.trim();
+            if (value && !value.match(/^https?:\/\//i)) {
+                // Remove @ if present
+                value = value.replace(/^@/, '');
+                
+                // Check if it looks like a Facebook username
+                if (value && !value.includes('/')) {
+                    this.value = 'https://www.facebook.com/' + value;
+                    console.log('📘 Auto-formatted Facebook URL to', this.value);
+                    
+                    // Add visual feedback
+                    this.style.backgroundColor = '#d4edda';
+                    setTimeout(() => {
+                        this.style.backgroundColor = '';
+                    }, 1500);
+                }
+            }
+        });
+        
+        facebookField.addEventListener('focus', function() {
+            if (!this.value) {
+                this.placeholder = 'Example: greengoldtv or @greengoldtv (full URL will be added automatically)';
+            }
+        });
+        
+        facebookField.addEventListener('blur', function() {
+            this.placeholder = 'https://www.facebook.com/username';
+        });
+    }
+}
 </script>
 {% endblock %}
 
@@ -448,6 +568,42 @@ function forceFixCountryCodeField() {
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
+    {% endfor %}
+    
+    <!-- Quick Actions for Newly Created Customer (on form page) -->
+    {% for message in messages %}
+        {% if "created successfully" in message.message %}
+        <div class="card border-success mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-rocket"></i> Customer Created - Quick Actions Available!</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">Great! Your customer was added successfully. Here are some things you can do next:</p>
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <button type="button" class="btn btn-primary w-100" onclick="addAnotherCustomer()">
+                            <i class="fas fa-user-plus"></i><br>Add Another Customer
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'crm:customer_list' %}" class="btn btn-info w-100">
+                            <i class="fas fa-list"></i><br>View All Customers
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <button type="button" class="btn btn-warning w-100" onclick="exportData()">
+                            <i class="fas fa-download"></i><br>Export Customer Data
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'crm:dashboard' %}" class="btn btn-secondary w-100">
+                            <i class="fas fa-home"></i><br>Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     {% endfor %}
 {% endif %}
 
@@ -488,13 +644,21 @@ function forceFixCountryCodeField() {
                     
                     <!-- Enhanced Name Information -->
                     <div class="row mb-3">
-                        <div class="col-md-12">
+                        <div class="col-md-6">
                             <label for="{{ form.name_suffix.id_for_label }}" class="form-label">Other name</label>
                             {{ form.name_suffix }}
                             {% if form.name_suffix.errors %}
                                 <div class="text-danger">{{ form.name_suffix.errors }}</div>
                             {% endif %}
                             <div class="form-text">Nickname, alias, or alternative name</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.designation.id_for_label }}" class="form-label">Professional Designation</label>
+                            {{ form.designation }}
+                            {% if form.designation.errors %}
+                                <div class="text-danger">{{ form.designation.errors }}</div>
+                            {% endif %}
+                            <div class="form-text">Academic or professional title (e.g., Prof., Dr., Ir., etc.)</div>
                         </div>
                     </div>
                     
@@ -702,6 +866,14 @@ function forceFixCountryCodeField() {
                                             {% if form.company_website.errors %}
                                                 <div class="text-danger">{{ form.company_website.errors }}</div>
                                             {% endif %}
+                                            <div class="form-text">
+                                                <i class="fas fa-info-circle text-primary"></i> 
+                                                Please include <strong>https://</strong> or <strong>http://</strong> at the beginning
+                                                <br>
+                                                <small class="text-muted">
+                                                    Example: <code>https://www.hkana.hk</code> instead of <code>www.hkana.hk</code>
+                                                </small>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1005,6 +1177,37 @@ function manualCountryChange() {
         updateCountryCodes(countrySelect.value);
     }
 }
+
+// Quick action functions for newly created customers
+function addAnotherCustomer() {
+    if (confirm('Clear the current form to add another customer?')) {
+        // Clear the form by reloading the page
+        window.location.reload();
+    }
+}
+
+function exportData() {
+    if (confirm('Export all customer data to CSV?')) {
+        // Redirect to export URL
+        window.location.href = '{% url "crm:export_customers_csv" %}';
+    }
+}
+
+// Auto-hide the quick actions card after 30 seconds on form page
+document.addEventListener('DOMContentLoaded', function() {
+    const quickActionsCard = document.querySelector('.card.border-success');
+    if (quickActionsCard) {
+        setTimeout(function() {
+            quickActionsCard.style.opacity = '0.7';
+            quickActionsCard.style.transition = 'opacity 2s ease-in-out';
+            // Add a small notice
+            const notice = document.createElement('small');
+            notice.className = 'text-muted';
+            notice.innerHTML = '<i class="fas fa-clock"></i> Quick actions will fade after 30 seconds';
+            quickActionsCard.querySelector('.card-body').appendChild(notice);
+        }, 30000); // 30 seconds
+    }
+});
 </script>
     
     <div class="col-md-4">

@@ -32,6 +32,57 @@ class Customer(models.Model):
     other_names = models.CharField(max_length=200, blank=True, help_text="Other names, aliases, or previous names")
     title = models.CharField(max_length=50, blank=True, help_text="Title (Dr., Prof., Mr., Ms., etc.)")
     
+    # Professional Designation
+    DESIGNATION_CHOICES = [
+        ('', 'Select Designation'),
+        # Academic Titles
+        ('professor', 'Professor'),
+        ('prof', 'Prof.'),
+        ('dr', 'Dr.'),
+        ('phd', 'Ph.D.'),
+        ('doctorate', 'Doctorate'),
+        ('professor_emeritus', 'Professor Emeritus'),
+        ('associate_professor', 'Associate Professor'),
+        ('assistant_professor', 'Assistant Professor'),
+        ('lecturer', 'Lecturer'),
+        ('senior_lecturer', 'Senior Lecturer'),
+        # Engineering Titles
+        ('ir', 'Ir.'),
+        ('eng', 'Eng.'),
+        ('pe', 'P.E.'),
+        ('eit', 'E.I.T.'),
+        # Medical Titles
+        ('md', 'M.D.'),
+        ('do', 'D.O.'),
+        ('dds', 'D.D.S.'),
+        ('dvm', 'D.V.M.'),
+        # Legal Titles  
+        ('jd', 'J.D.'),
+        ('esquire', 'Esq.'),
+        # Business/Professional
+        ('cpa', 'C.P.A.'),
+        ('cfa', 'C.F.A.'),
+        ('pmp', 'P.M.P.'),
+        ('mba', 'M.B.A.'),
+        # Religious
+        ('rev', 'Rev.'),
+        ('father', 'Father'),
+        ('pastor', 'Pastor'),
+        # Military
+        ('captain', 'Captain'),
+        ('colonel', 'Colonel'),
+        ('major', 'Major'),
+        ('general', 'General'),
+        # Other
+        ('other', 'Other'),
+    ]
+    designation = models.CharField(
+        max_length=50, 
+        choices=DESIGNATION_CHOICES, 
+        blank=True, 
+        help_text="Professional or academic designation"
+    )
+    
     # Personal Details
     GENDER_CHOICES = [
         ('M', 'Male'),
@@ -217,9 +268,11 @@ class Customer(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        # Build name with title if available
+        # Build name with title and designation if available
         name_parts = []
-        if self.title:
+        if self.designation:
+            name_parts.append(self.get_designation_display())
+        elif self.title:
             name_parts.append(self.title)
         
         if self.preferred_name:
