@@ -1,0 +1,318 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify custom_filters %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url 'admin:crm_customer_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>🔍 {{ title }}</h1>
+
+{% if not diagnostic_result %}
+<div class="module aligned">
+    <h2>Upload CSV File for Analysis</h2>
+    
+    <div class="form-row">
+        <div class="help">
+            <p>Upload your CSV file to diagnose potential import issues before attempting the actual import.</p>
+            <p>This tool will analyze:</p>
+            <ul>
+                <li>File encoding and format</li>
+                <li>Delimiter detection</li>
+                <li>Header structure and field mapping</li>
+                <li>Common CSV issues</li>
+                <li>Data validation problems</li>
+            </ul>
+        </div>
+    </div>
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div class="form-row">
+            <div>
+                <label for="id_csv_file">CSV file:</label>
+                <input type="file" name="csv_file" id="id_csv_file" accept=".csv" required>
+            </div>
+        </div>
+        
+        <div class="submit-row">
+            <input type="submit" value="Analyze File" class="default">
+            <a href="{% url 'admin:crm_customer_changelist' %}" class="button cancel-link">Back to Customer List</a>
+        </div>
+    </form>
+</div>
+{% else %}
+
+<div class="module">
+    <h2>📊 Analysis Results for: {{ file_name }}</h2>
+    
+    <div class="form-row">
+        {% if diagnostic_result.success %}
+            <div class="alert alert-success">
+                <strong>✅ File looks good!</strong> No critical issues detected.
+            </div>
+        {% else %}
+            <div class="alert alert-danger">
+                <strong>❌ Issues detected!</strong> Please review the problems below before importing.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if diagnostic_result.issues %}
+<div class="module">
+    <h2>🚨 Critical Issues</h2>
+    <div class="results">
+        <ul>
+            {% for issue in diagnostic_result.issues %}
+            <li style="color: #d63384; font-weight: bold;">{{ issue }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+{% if diagnostic_result.warnings %}
+<div class="module">
+    <h2>⚠️ Warnings</h2>
+    <div class="results">
+        <ul>
+            {% for warning in diagnostic_result.warnings %}
+            <li style="color: #fd7e14;">{{ warning }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+{% if diagnostic_result.info %}
+<div class="module">
+    <h2>ℹ️ File Information</h2>
+    <div class="results">
+        <ul>
+            {% for info in diagnostic_result.info %}
+            <li>{{ info }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+{% if diagnostic_result.delimiter_analysis %}
+<div class="module">
+    <h2>🔍 Delimiter Analysis</h2>
+    
+    <div class="form-row">
+        <p><strong>Recommended delimiter:</strong> 
+            <code>{{ diagnostic_result.delimiter_analysis.recommended_delimiter }}</code>
+        </p>
+    </div>
+    
+    {% if diagnostic_result.delimiter_analysis.available_delimiters %}
+    <div class="results">
+        <table>
+            <thead>
+                <tr>
+                    <th>Delimiter</th>
+                    <th>Type</th>
+                    <th>Count</th>
+                    <th>Fields in Row 1</th>
+                    <th>Fields in Row 2</th>
+                    <th>Consistent</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for delimiter, info in diagnostic_result.delimiter_analysis.available_delimiters.items %}
+                <tr class="{% cycle 'row1' 'row2' %}">
+                    <td><code>{{ delimiter }}</code></td>
+                    <td>{{ info.name }}</td>
+                    <td>{{ info.count }}</td>
+                    <td>{{ info.first_row_fields }}</td>
+                    <td>{{ info.second_row_fields }}</td>
+                    <td>
+                        {% if info.consistent %}
+                            <span style="color: #28a745;">✓ Yes</span>
+                        {% else %}
+                            <span style="color: #d63384;">✗ No</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if diagnostic_result.structure_analysis.headers %}
+<div class="module">
+    <h2>📋 Field Structure</h2>
+    
+    <div class="form-row">
+        <p><strong>Headers found:</strong> {{ diagnostic_result.structure_analysis.header_count }}</p>
+    </div>
+    
+    <div class="results">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Header Name</th>
+                    <th>Sample Data</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for header in diagnostic_result.structure_analysis.headers %}
+                <tr class="{% cycle 'row1' 'row2' %}">
+                    <td>{{ forloop.counter }}</td>
+                    <td><strong>{{ header }}</strong></td>
+                    <td>
+                        {% if diagnostic_result.structure_analysis.sample_rows %}
+                            <code>{{ diagnostic_result.structure_analysis.sample_rows.0|lookup:header|truncatechars:50 }}</code>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if diagnostic_result.mapping_analysis %}
+<div class="module">
+    <h2>🎯 Field Mapping Analysis</h2>
+    
+    <div class="form-row">
+        <p><strong>Mapping confidence:</strong> {{ diagnostic_result.mapping_analysis.mapping_confidence|floatformat:1 }}%</p>
+    </div>
+    
+    {% if diagnostic_result.mapping_analysis.field_mappings %}
+    <h3>✅ Fields that can be mapped:</h3>
+    <div class="results">
+        <table>
+            <thead>
+                <tr>
+                    <th>CSV Header</th>
+                    <th>Maps to Field</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for csv_header, model_field in diagnostic_result.mapping_analysis.field_mappings.items %}
+                <tr class="{% cycle 'row1' 'row2' %}">
+                    <td>{{ csv_header }}</td>
+                    <td><strong>{{ model_field }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    
+    {% if diagnostic_result.mapping_analysis.missing_mandatory %}
+    <h3 style="color: #d63384;">❌ Missing mandatory fields:</h3>
+    <div class="alert alert-danger">
+        <ul>
+            {% for field in diagnostic_result.mapping_analysis.missing_mandatory %}
+            <li><strong>{{ field }}</strong></li>
+            {% endfor %}
+        </ul>
+        <p><small>These fields are required for import. Please ensure your CSV has columns that map to these fields.</small></p>
+    </div>
+    {% endif %}
+    
+    {% if diagnostic_result.mapping_analysis.unmapped_headers %}
+    <h3 style="color: #fd7e14;">⚠️ Unmapped headers:</h3>
+    <div class="form-row">
+        <p>{{ diagnostic_result.mapping_analysis.unmapped_headers|join:", " }}</p>
+        <small>These columns will be ignored during import.</small>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if diagnostic_result.issues_analysis and diagnostic_result.issues_analysis.issues %}
+<div class="module">
+    <h2>🔧 Data Quality Issues</h2>
+    <div class="results">
+        <ul>
+            {% for issue in diagnostic_result.issues_analysis.issues %}
+            <li style="color: #d63384;">{{ issue }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+{% if diagnostic_result.content_sample %}
+<div class="module">
+    <h2>📄 File Sample</h2>
+    <div class="form-row">
+        <pre style="background: #f8f9fa; padding: 15px; border: 1px solid #dee2e6; border-radius: 4px; overflow-x: auto; font-size: 11px;">{{ diagnostic_result.content_sample }}</pre>
+    </div>
+</div>
+{% endif %}
+
+<div class="submit-row">
+    {% if diagnostic_result.success %}
+        <a href="{% url 'admin:crm_customer_import_csv' %}" class="button default">Proceed to Import</a>
+    {% endif %}
+    
+    <a href="{% url 'admin:crm_customer_diagnose_csv' %}" class="button">Analyze Another File</a>
+    <a href="{% url 'admin:crm_customer_changelist' %}" class="button cancel-link">Back to Customer List</a>
+</div>
+
+{% endif %}
+
+<style>
+.alert {
+    padding: 15px;
+    margin: 15px 0;
+    border-radius: 4px;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.results table {
+    font-size: 12px;
+}
+
+.results table th,
+.results table td {
+    padding: 8px;
+    vertical-align: top;
+}
+
+code {
+    background: #f8f9fa;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 11px;
+}
+
+pre {
+    font-family: 'Monaco', 'Consolas', monospace;
+    line-height: 1.4;
+}
+</style>
+{% endblock %}

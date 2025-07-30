@@ -1,0 +1,557 @@
+{% extends 'crm/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .csv-import-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .import-step {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .step-number {
+        background: #007bff;
+        color: white;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        margin-right: 10px;
+    }
+    
+    .field-mapping-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+    
+    .field-mapping-table th,
+    .field-mapping-table td {
+        padding: 8px 12px;
+        border: 1px solid #dee2e6;
+        text-align: left;
+    }
+    
+    .field-mapping-table th {
+        background-color: #e9ecef;
+        font-weight: bold;
+    }
+    
+    .mandatory-field {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    
+    .preview-section {
+        display: none;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 20px;
+    }
+    
+    .error-section {
+        display: none;
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 20px;
+        color: #721c24;
+    }
+    
+    .success-section {
+        display: none;
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 20px;
+        color: #155724;
+    }
+    
+    .warning-section {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 10px;
+        color: #856404;
+    }
+    
+    .btn-upload {
+        background-color: #28a745;
+        border-color: #28a745;
+    }
+    
+    .btn-preview {
+        background-color: #17a2b8;
+        border-color: #17a2b8;
+    }
+    
+    .sample-data {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+    }
+    
+    .loading {
+        text-align: center;
+        padding: 20px;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="csv-import-container">
+    <h1><i class="fas fa-file-csv"></i> {{ title }}</h1>
+    
+    <!-- Step 1: File Upload -->
+    <div class="import-step">
+        <h3><span class="step-number">1</span>Upload CSV File</h3>
+        <p>Select your CSV file containing customer data. The system will automatically detect field mappings.</p>
+        
+        <form id="csvUploadForm" enctype="multipart/form-data">
+            <div class="form-group">
+                <input type="file" id="csvFile" name="csv_file" accept=".csv" class="form-control-file" required>
+                <small class="form-text text-muted">
+                    Supported formats: CSV (.csv) • Encoding: UTF-8 or Latin-1 • Max size: 10MB
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label for="defaultSource">Default Data Source:</label>
+                <select id="defaultSource" name="default_source" class="form-control">
+                    <option value="csv_import">CSV Import (default)</option>
+                    <optgroup label="Digital Marketing">
+                        <option value="website">Website</option>
+                        <option value="google_search">Google Search</option>
+                        <option value="social_media">Social Media</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="twitter">Twitter/X</option>
+                        <option value="email_marketing">Email Marketing</option>
+                        <option value="google_ads">Google Ads</option>
+                    </optgroup>
+                    <optgroup label="Referrals & Events">
+                        <option value="referral">Referral</option>
+                        <option value="word_of_mouth">Word of Mouth</option>
+                        <option value="conference">Conference/Event</option>
+                        <option value="workshop">Workshop</option>
+                        <option value="webinar">Webinar</option>
+                    </optgroup>
+                    <optgroup label="Direct Contact">
+                        <option value="walk_in">Walk-in</option>
+                        <option value="phone_inquiry">Phone Inquiry</option>
+                        <option value="email_inquiry">Email Inquiry</option>
+                        <option value="contact_form">Contact Form</option>
+                    </optgroup>
+                    <optgroup label="Other">
+                        <option value="other">Other</option>
+                        <option value="unknown">Unknown</option>
+                    </optgroup>
+                </select>
+                <small class="form-text text-muted">
+                    This source will be applied to all customers unless they have a source column in the CSV.
+                </small>
+            </div>
+            
+            <button type="button" id="previewBtn" class="btn btn-preview btn-primary">
+                <i class="fas fa-eye"></i> Preview & Analyze Fields
+            </button>
+        </form>
+    </div>
+    
+    <!-- Loading indicator -->
+    <div id="loadingIndicator" class="loading" style="display: none;">
+        <i class="fas fa-spinner fa-spin"></i> Analyzing CSV file...
+    </div>
+    
+    <!-- Error section -->
+    <div id="errorSection" class="error-section">
+        <h4><i class="fas fa-exclamation-triangle"></i> Errors</h4>
+        <ul id="errorList"></ul>
+    </div>
+    
+    <!-- Step 2: Field Mapping -->
+    <div id="mappingStep" class="import-step" style="display: none;">
+        <h3><span class="step-number">2</span>Review Field Mapping</h3>
+        <p>Review the automatic field mapping below. You can adjust mappings if needed.</p>
+        
+        <div id="mappingInfo"></div>
+        
+        <table class="field-mapping-table">
+            <thead>
+                <tr>
+                    <th>CSV Column</th>
+                    <th>Mapped to Field</th>
+                    <th>Status</th>
+                    <th>Sample Data</th>
+                </tr>
+            </thead>
+            <tbody id="mappingTableBody">
+            </tbody>
+        </table>
+        
+        <div id="warningSection" class="warning-section" style="display: none;">
+            <h5><i class="fas fa-exclamation-triangle"></i> Warnings</h5>
+            <ul id="warningList"></ul>
+        </div>
+    </div>
+    
+    <!-- Step 3: Preview -->
+    <div id="previewStep" class="import-step" style="display: none;">
+        <h3><span class="step-number">3</span>Preview Import</h3>
+        <p>Review sample data that will be imported:</p>
+        
+        <div id="previewStats"></div>
+        <div id="sampleData" class="sample-data"></div>
+    </div>
+    
+    <!-- Step 4: Import -->
+    <div id="importStep" class="import-step" style="display: none;">
+        <h3><span class="step-number">4</span>Import Data</h3>
+        <p>Ready to import your customer data?</p>
+        
+        <button type="button" id="importBtn" class="btn btn-upload btn-success btn-lg">
+            <i class="fas fa-upload"></i> Import Customers
+        </button>
+        
+        <div id="importProgress" style="display: none; margin-top: 15px;">
+            <div class="progress">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                     role="progressbar" style="width: 100%">
+                    Importing...
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Success section -->
+    <div id="successSection" class="success-section">
+        <h4><i class="fas fa-check-circle"></i> Import Successful!</h4>
+        <div id="successStats"></div>
+        <div id="successWarnings"></div>
+        <p>
+            <a href="{% url 'crm:customer_list' %}" class="btn btn-primary">View Customers</a>
+        </p>
+    </div>
+</div>
+
+<!-- Field Mapping Reference -->
+<div class="modal fade" id="fieldMappingModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Field Mapping Reference</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <h6>Supported Field Variations:</h6>
+                <div class="row">
+                    {% for field, variations in field_mappings.items %}
+                    <div class="col-md-6 mb-3">
+                        <strong>{{ field }}{% if field in mandatory_fields %} <span class="mandatory-field">*</span>{% endif %}:</strong><br>
+                        <small class="text-muted">{{ variations|join:", " }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+                <p><span class="mandatory-field">*</span> = Mandatory fields</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentFieldMapping = {};
+let csvFileData = null;
+
+document.getElementById('previewBtn').addEventListener('click', function() {
+    const fileInput = document.getElementById('csvFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Please select a CSV file first.');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('csv_file', file);
+    
+    // Include default source
+    const defaultSource = document.getElementById('defaultSource').value;
+    formData.append('default_source', defaultSource);
+    
+    showLoading(true);
+    hideAllSections();
+    
+    fetch('/api/customers/preview_csv_import/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        showLoading(false);
+        
+        if (data.error) {
+            showError([data.error]);
+            return;
+        }
+        
+        currentFieldMapping = data.field_mapping;
+        csvFileData = data;
+        showMappingStep(data);
+        
+        if (data.missing_fields && data.missing_fields.length === 0) {
+            showPreviewStep(data);
+            showImportStep();
+        }
+    })
+    .catch(error => {
+        showLoading(false);
+        showError(['Network error: ' + error.message]);
+    });
+});
+
+document.getElementById('importBtn').addEventListener('click', function() {
+    if (!csvFileData) {
+        alert('Please preview the file first.');
+        return;
+    }
+    
+    const fileInput = document.getElementById('csvFile');
+    const file = fileInput.files[0];
+    
+    const formData = new FormData();
+    formData.append('csv_file', file);
+    formData.append('field_mapping', JSON.stringify(currentFieldMapping));
+    
+    // Include default source
+    const defaultSource = document.getElementById('defaultSource').value;
+    formData.append('default_source', defaultSource);
+    
+    document.getElementById('importProgress').style.display = 'block';
+    document.getElementById('importBtn').disabled = true;
+    
+    fetch('/api/customers/import_csv/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('importProgress').style.display = 'none';
+        document.getElementById('importBtn').disabled = false;
+        
+        if (data.success) {
+            showSuccess(data);
+        } else {
+            showError(data.errors || [data.message]);
+        }
+    })
+    .catch(error => {
+        document.getElementById('importProgress').style.display = 'none';
+        document.getElementById('importBtn').disabled = false;
+        showError(['Network error: ' + error.message]);
+    });
+});
+
+function showLoading(show) {
+    document.getElementById('loadingIndicator').style.display = show ? 'block' : 'none';
+}
+
+function hideAllSections() {
+    document.getElementById('errorSection').style.display = 'none';
+    document.getElementById('mappingStep').style.display = 'none';
+    document.getElementById('previewStep').style.display = 'none';
+    document.getElementById('importStep').style.display = 'none';
+    document.getElementById('successSection').style.display = 'none';
+}
+
+function showError(errors) {
+    const errorSection = document.getElementById('errorSection');
+    const errorList = document.getElementById('errorList');
+    
+    errorList.innerHTML = '';
+    errors.forEach(error => {
+        const li = document.createElement('li');
+        li.textContent = error;
+        errorList.appendChild(li);
+    });
+    
+    errorSection.style.display = 'block';
+}
+
+function showMappingStep(data) {
+    const mappingStep = document.getElementById('mappingStep');
+    const mappingInfo = document.getElementById('mappingInfo');
+    const tableBody = document.getElementById('mappingTableBody');
+    
+    // Show mapping info
+    let infoHtml = `<p><strong>Detected ${data.total_rows_detected} rows</strong> in CSV file.</p>`;
+    
+    if (data.missing_fields && data.missing_fields.length > 0) {
+        infoHtml += `<div class="alert alert-danger">
+            <strong>Missing mandatory fields:</strong> ${data.missing_fields.join(', ')}
+            <br><small>Please ensure your CSV has columns for these required fields.</small>
+        </div>`;
+    }
+    
+    mappingInfo.innerHTML = infoHtml;
+    
+    // Clear and populate table
+    tableBody.innerHTML = '';
+    
+    data.headers.forEach(header => {
+        const row = document.createElement('tr');
+        const mappedField = data.field_mapping[header];
+        const isMapped = !!mappedField;
+        const isMandatory = mappedField && ['first_name', 'last_name', 'email_primary'].includes(mappedField);
+        
+        // Sample data from first row
+        const sampleData = data.sample_rows.length > 0 ? data.sample_rows[0][header] || '' : '';
+        
+        row.innerHTML = `
+            <td><strong>${header}</strong></td>
+            <td>
+                ${isMapped ? 
+                    `<span class="badge badge-success">${mappedField}</span>` : 
+                    '<span class="badge badge-secondary">Not mapped</span>'
+                }
+            </td>
+            <td>
+                ${isMandatory ? 
+                    '<span class="badge badge-danger">Required</span>' : 
+                    (isMapped ? '<span class="badge badge-success">Mapped</span>' : '<span class="badge badge-warning">Optional</span>')
+                }
+            </td>
+            <td><code>${sampleData.substring(0, 50)}${sampleData.length > 50 ? '...' : ''}</code></td>
+        `;
+        
+        tableBody.appendChild(row);
+    });
+    
+    // Show warnings if any
+    if (data.unmapped_headers && data.unmapped_headers.length > 0) {
+        const warningSection = document.getElementById('warningSection');
+        const warningList = document.getElementById('warningList');
+        
+        warningList.innerHTML = '';
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>Unmapped columns:</strong> ${data.unmapped_headers.join(', ')} (these will be ignored during import)`;
+        warningList.appendChild(li);
+        
+        warningSection.style.display = 'block';
+    }
+    
+    mappingStep.style.display = 'block';
+}
+
+function showPreviewStep(data) {
+    const previewStep = document.getElementById('previewStep');
+    const previewStats = document.getElementById('previewStats');
+    const sampleData = document.getElementById('sampleData');
+    
+    previewStats.innerHTML = `
+        <div class="alert alert-info">
+            <strong>Ready to import:</strong> ${data.total_rows_detected} customers
+        </div>
+    `;
+    
+    // Show sample data table
+    if (data.sample_rows.length > 0) {
+        let tableHtml = '<table class="table table-sm table-bordered"><thead><tr>';
+        
+        // Headers for mapped fields only
+        Object.values(data.field_mapping).forEach(field => {
+            tableHtml += `<th>${field}</th>`;
+        });
+        tableHtml += '</tr></thead><tbody>';
+        
+        // Sample rows
+        data.sample_rows.slice(0, 5).forEach(row => {
+            tableHtml += '<tr>';
+            Object.entries(data.field_mapping).forEach(([csvField, modelField]) => {
+                const value = row[csvField] || '';
+                tableHtml += `<td>${value}</td>`;
+            });
+            tableHtml += '</tr>';
+        });
+        
+        tableHtml += '</tbody></table>';
+        sampleData.innerHTML = tableHtml;
+    }
+    
+    previewStep.style.display = 'block';
+}
+
+function showImportStep() {
+    document.getElementById('importStep').style.display = 'block';
+}
+
+function showSuccess(data) {
+    const successSection = document.getElementById('successSection');
+    const successStats = document.getElementById('successStats');
+    const successWarnings = document.getElementById('successWarnings');
+    
+    successStats.innerHTML = `
+        <p><strong>Import Statistics:</strong></p>
+        <ul>
+            <li>Total rows processed: ${data.stats.total}</li>
+            <li>Successfully imported: ${data.stats.success}</li>
+            <li>Failed: ${data.stats.failed}</li>
+        </ul>
+    `;
+    
+    if (data.warnings && data.warnings.length > 0) {
+        successWarnings.innerHTML = `
+            <div class="alert alert-warning mt-3">
+                <strong>Warnings:</strong>
+                <ul class="mb-0">
+                    ${data.warnings.map(warning => `<li>${warning}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+    
+    successSection.style.display = 'block';
+}
+
+// Add CSRF token to all requests
+const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+if (!csrfToken) {
+    // Add CSRF token if not present
+    const token = document.createElement('input');
+    token.type = 'hidden';
+    token.name = 'csrfmiddlewaretoken';
+    token.value = '{{ csrf_token }}';
+    document.body.appendChild(token);
+}
+</script>
+{% endblock %}

@@ -20,6 +20,8 @@ urlpatterns = [
     path('customers/', frontend_views.customer_list, name='customer_list'),
     path('customers/create/', frontend_views.customer_create, name='customer_create'),
     path('customers/export/csv/', frontend_views.export_customers_csv, name='export_customers_csv'),
+    path('customers/import/csv/', frontend_views.import_customers_csv, name='import_customers_csv'),
+    path('analytics/data-sources/', frontend_views.data_source_analytics, name='data_source_analytics'),
     
     # Protected Frontend Routes (require login)
     path('secure/', frontend_views.dashboard, name='secure_dashboard'),

@@ -497,7 +497,7 @@ class CommunicationManager:
         
         return self.send_message(
             customer, 
-            customer.preferred_communication, 
+            customer.preferred_communication_method, 
             subject, 
             content
         )
@@ -520,7 +520,7 @@ class CommunicationManager:
         
         return self.send_message(
             customer, 
-            customer.preferred_communication, 
+            customer.preferred_communication_method, 
             subject, 
             content
         )

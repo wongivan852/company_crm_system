@@ -4,12 +4,15 @@ from rest_framework.decorators import action, throttle_classes
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Prefetch
 from django.http import HttpResponse, HttpResponseForbidden
 from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
+from django.views.decorators.cache import cache_page
+from django.utils.decorators import method_decorator
 import csv
 import datetime
 from .models import Customer, Course, Enrollment, Conference, ConferenceRegistration, CommunicationLog
@@ -20,6 +23,7 @@ from .serializers import (
 from .communication_services import CommunicationManager
 from .forms import CustomerForm
 from .utils import generate_customer_csv_response, validate_uat_access
+from .csv_import_handler import CSVImportHandler
 
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all()
@@ -29,6 +33,13 @@ class CustomerViewSet(viewsets.ModelViewSet):
     search_fields = ['first_name', 'last_name', 'email_primary', 'company_primary']
     ordering_fields = ['created_at', 'last_name', 'first_name']
     ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Optimized queryset with prefetch for related data"""
+        return Customer.objects.select_related().prefetch_related(
+            Prefetch('enrollment_set', queryset=Enrollment.objects.select_related('course')),
+            'communicationlog_set'
+        )
     
     @action(detail=True, methods=['post'])
     @throttle_classes([UserRateThrottle])
@@ -50,19 +61,30 @@ class CustomerViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def search_by_contact(self, request):
-        """Search customers by email, phone, or WhatsApp"""
+        """Search customers by email, phone, or WhatsApp with caching"""
         contact = request.query_params.get('contact', '')
         if not contact:
             return Response({'error': 'Contact parameter required'}, status=400)
+        
+        # Create cache key for this search
+        cache_key = f"customer_search_{contact}"
+        cached_result = cache.get(cache_key)
+        
+        if cached_result is not None:
+            return Response(cached_result)
         
         customers = Customer.objects.filter(
             Q(email_primary__icontains=contact) |
             Q(phone_primary__icontains=contact) |
             Q(whatsapp_number__icontains=contact)
-        )
+        ).select_related()
         
         serializer = self.get_serializer(customers, many=True)
-        return Response(serializer.data)
+        result_data = serializer.data
+        
+        # Cache for 5 minutes
+        cache.set(cache_key, result_data, settings.CACHE_TTL['customer_list'])
+        return Response(result_data)
     
     @action(detail=False, methods=['get'])
     @throttle_classes([UserRateThrottle])
@@ -71,6 +93,78 @@ class CustomerViewSet(viewsets.ModelViewSet):
         # Apply any filtering from the viewset
         queryset = self.filter_queryset(self.get_queryset())
         return generate_customer_csv_response(queryset)
+    
+    @action(detail=False, methods=['post'])
+    @throttle_classes([UserRateThrottle])
+    def preview_csv_import(self, request):
+        """Preview CSV import with field mapping analysis"""
+        if 'csv_file' not in request.FILES:
+            return Response({'error': 'No CSV file provided'}, status=400)
+        
+        csv_file = request.FILES['csv_file']
+        try:
+            csv_content = csv_file.read().decode('utf-8-sig')  # Handle BOM
+        except UnicodeDecodeError:
+            try:
+                csv_content = csv_file.read().decode('latin-1')
+            except UnicodeDecodeError:
+                return Response({'error': 'Unable to decode CSV file. Please ensure it is UTF-8 or Latin-1 encoded.'}, status=400)
+        
+        import_handler = CSVImportHandler()
+        preview_result = import_handler.preview_import(csv_content, max_rows=10)
+        
+        return Response(preview_result)
+    
+    @action(detail=False, methods=['post'])
+    @throttle_classes([UserRateThrottle])
+    def import_csv(self, request):
+        """Import customers from CSV file"""
+        if 'csv_file' not in request.FILES:
+            return Response({'error': 'No CSV file provided'}, status=400)
+        
+        csv_file = request.FILES['csv_file']
+        field_mapping = request.data.get('field_mapping')  # Optional custom mapping
+        
+        try:
+            csv_content = csv_file.read().decode('utf-8-sig')  # Handle BOM
+        except UnicodeDecodeError:
+            try:
+                csv_content = csv_file.read().decode('latin-1')
+            except UnicodeDecodeError:
+                return Response({'error': 'Unable to decode CSV file. Please ensure it is UTF-8 or Latin-1 encoded.'}, status=400)
+        
+        # Parse field mapping if provided as JSON string
+        if field_mapping and isinstance(field_mapping, str):
+            import json
+            try:
+                field_mapping = json.loads(field_mapping)
+            except json.JSONDecodeError:
+                return Response({'error': 'Invalid field mapping JSON'}, status=400)
+        
+        # Get default source from request
+        default_source = request.data.get('default_source', 'csv_import')
+        
+        import_handler = CSVImportHandler()
+        result = import_handler.import_csv(csv_content, field_mapping, default_source=default_source)
+        
+        if result['success']:
+            return Response({
+                'success': True,
+                'message': f"Successfully imported {result['stats']['success']} customers",
+                'stats': result['stats'],
+                'warnings': result.get('warnings', [])
+            })
+        else:
+            return Response({
+                'success': False,
+                'message': result.get('error', 'Import failed'),
+                'errors': result.get('errors', []),
+                'warnings': result.get('warnings', []),
+                'stats': result.get('stats', {}),
+                'field_mapping': result.get('field_mapping'),
+                'missing_fields': result.get('missing_fields'),
+                'headers': result.get('headers')
+            }, status=400)
 
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
@@ -78,6 +172,17 @@ class CourseViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['course_type', 'is_active']
     search_fields = ['title', 'description']
+    
+    def get_queryset(self):
+        """Optimized queryset with prefetch for enrollments"""
+        return Course.objects.prefetch_related(
+            Prefetch('enrollment_set', queryset=Enrollment.objects.select_related('customer'))
+        )
+    
+    @method_decorator(cache_page(settings.CACHE_TTL['course_list']))
+    def list(self, request, *args, **kwargs):
+        """Cached course list"""
+        return super().list(request, *args, **kwargs)
     
     @action(detail=True, methods=['post'])
     def enroll_customer(self, request, pk=None):
@@ -199,7 +304,8 @@ def public_customer_create(request):
         form = CustomerForm(request.POST)
         if form.is_valid():
             customer = form.save()
-            messages.success(request, f'Customer {customer.first_name} {customer.last_name} created successfully!')
+            messages.success(request, f'Customer {customer.first_name} {customer.last_name} created successfully! Use the quick actions to continue.')
+            # Redirect to customer detail view with customer ID (need to create this route)
             return redirect('crm:public_customer_list')
     else:
         form = CustomerForm()
@@ -213,7 +319,7 @@ def test_customer_create(request):
         form = CustomerForm(request.POST)
         if form.is_valid():
             customer = form.save()
-            messages.success(request, f'Customer {customer.first_name} {customer.last_name} created successfully!')
+            messages.success(request, f'Customer {customer.first_name} {customer.last_name} created successfully! Quick actions available below.')
             return redirect('crm:test_customer_create')
     else:
         form = CustomerForm()

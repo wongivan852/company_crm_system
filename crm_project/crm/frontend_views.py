@@ -1,4 +1,5 @@
 # frontend_views.py - Web interface for customer management
+import logging
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -10,6 +11,9 @@ from .forms import CustomerForm, EnrollmentForm
 from .communication_services import CommunicationManager
 from .tasks import send_welcome_message_task
 from .utils import generate_customer_csv_response
+from .csv_import_handler import CSVImportHandler
+
+logger = logging.getLogger(__name__)
 
 @login_required
 def dashboard(request):
@@ -48,8 +52,8 @@ def customer_create(request):
         form = CustomerForm(request.POST)
         if form.is_valid():
             customer = form.save()
-            messages.success(request, f'Customer {customer.first_name} {customer.last_name} created successfully!')
-            return redirect('crm:customer_list')
+            messages.success(request, f'Customer {customer.first_name} {customer.last_name} created successfully! You can now perform quick actions below.')
+            return redirect('crm:customer_detail', customer_id=customer.id)
     else:
         form = CustomerForm()
     
@@ -64,6 +68,47 @@ def customer_create(request):
 def export_customers_csv(request):
     """Export customer data to CSV - SECURE LOGIN REQUIRED"""
     return generate_customer_csv_response()
+
+@login_required
+def import_customers_csv(request):
+    """Frontend view for CSV import with field mapping interface"""
+    context = {
+        'title': 'Import Customers from CSV',
+        'field_mappings': CSVImportHandler.FIELD_MAPPINGS,
+        'mandatory_fields': CSVImportHandler.MANDATORY_FIELDS,
+        'customer_types': [choice[0] for choice in Customer.CUSTOMER_TYPES]
+    }
+    return render(request, 'crm/import_csv.html', context)
+
+@login_required
+def data_source_analytics(request):
+    """Analytics view for customer data sources"""
+    from django.db.models import Count
+    
+    # Get source distribution
+    source_stats = Customer.objects.values('source').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    # Get recent acquisitions by source
+    recent_customers = Customer.objects.select_related().order_by('-created_at')[:50]
+    
+    # Calculate percentages
+    total_customers = Customer.objects.count()
+    for stat in source_stats:
+        stat['percentage'] = round((stat['count'] / total_customers * 100), 1) if total_customers > 0 else 0
+        # Get display name for source
+        source_display = dict(Customer.SOURCE_CHOICES).get(stat['source'], stat['source'])
+        stat['source_display'] = source_display if source_display else 'Unknown'
+    
+    context = {
+        'title': 'Customer Data Source Analytics',
+        'source_stats': source_stats,
+        'recent_customers': recent_customers,
+        'total_customers': total_customers,
+        'page_title': 'Data Source Analytics - Secure Access',
+    }
+    return render(request, 'crm/data_source_analytics.html', context)
 
 @login_required
 @login_required
@@ -123,22 +168,27 @@ def customer_detail(request, customer_id):
     return render(request, 'crm/customer_detail.html', context)
 
 @login_required
-def customer_create(request):
-    """Create new customer"""
+def customer_create_with_welcome(request):
+    """Create new customer with welcome message"""
     if request.method == 'POST':
         form = CustomerForm(request.POST)
         if form.is_valid():
             customer = form.save()
             
-            # Send welcome message asynchronously
-            send_welcome_message_task.delay(str(customer.id))
+            # Send welcome message synchronously (Celery disabled)
+            try:
+                send_welcome_message_task(str(customer.id))
+                messages.success(request, f'Customer {customer.first_name} {customer.last_name} created successfully and welcome message sent! Use the quick actions below.')
+            except Exception as e:
+                # Log the error but don't fail the customer creation
+                logger.error(f"Failed to send welcome message: {e}")
+                messages.success(request, f'Customer {customer.first_name} {customer.last_name} created successfully! (Note: Welcome message could not be sent automatically)')
             
-            messages.success(request, f'Customer {customer.first_name} {customer.last_name} created successfully!')
             return redirect('crm:customer_detail', customer_id=customer.id)
     else:
         form = CustomerForm()
     
-    context = {'form': form, 'action': 'Create'}
+    context = {'form': form, 'action': 'Create', 'title': 'Add New Customer with Welcome Message'}
     return render(request, 'crm/customer_form.html', context)
 
 @login_required
@@ -178,7 +228,7 @@ def send_message(request, customer_id):
     customer = get_object_or_404(Customer, id=customer_id)
     
     if request.method == 'POST':
-        channel = request.POST.get('channel', customer.preferred_communication)
+        channel = request.POST.get('channel', customer.preferred_communication_method)
         subject = request.POST.get('subject', '')
         content = request.POST.get('content', '')
         

@@ -33,7 +33,10 @@ class CustomerForm(forms.ModelForm):
             'preferred_communication_method',
             
             # CRM fields
-            'customer_type', 'status', 'preferred_learning_format', 'interests'
+            'customer_type', 'status', 'preferred_learning_format', 'interests',
+            
+            # Data source tracking
+            'source', 'referral_source'
         ]
         widgets = {
             'first_name': forms.TextInput(attrs={
@@ -169,6 +172,14 @@ class CustomerForm(forms.ModelForm):
             'preferred_communication_method': forms.Select(attrs={
                 'class': 'form-select'
             }),
+            'source': forms.Select(attrs={
+                'class': 'form-select',
+                'placeholder': 'How did they find us?'
+            }),
+            'referral_source': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Who referred them? (if applicable)'
+            }),
         }
         
         help_texts = {
@@ -176,6 +187,8 @@ class CustomerForm(forms.ModelForm):
             'facebook_profile': 'Enter your Facebook username (e.g., greengoldtv) or full URL. The full URL will be added automatically.',
             'twitter_handle': 'Enter your Twitter/X handle without the @ symbol.',
             'instagram_handle': 'Enter your Instagram handle without the @ symbol.',
+            'source': 'How did this customer find us? This helps track marketing effectiveness.',
+            'referral_source': 'If referred, specify who referred them (person, company, or source).',
         }
 
 

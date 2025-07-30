@@ -82,24 +82,27 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # For static files in production
-    # 'crm.middleware.SecurityMiddleware',  # Custom security logging
-    # 'crm.middleware.RequestLoggingMiddleware',  # Request/response logging
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # 'crm.middleware.ErrorHandlingMiddleware',  # Custom error handling
 ]
+
+# Add debug toolbar for development
+if DEBUG:
+    INSTALLED_APPS.append('debug_toolbar')
+    MIDDLEWARE.insert(1, 'debug_toolbar.middleware.DebugToolbarMiddleware')
+    INTERNAL_IPS = ['127.0.0.1', 'localhost']
 
 ROOT_URLCONF = 'crm_project.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -223,7 +226,7 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ] + (['rest_framework.renderers.BrowsableAPIRenderer'] if DEBUG else []),
-    'EXCEPTION_HANDLER': 'crm.middleware.custom_drf_exception_handler',
+    'EXCEPTION_HANDLER': 'crm.error_handlers.custom_exception_handler',
 }
 
 # CORS Configuration
@@ -240,6 +243,27 @@ EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@learninginstitute.com')
+
+# Redis Caching Configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': config('REDIS_URL', default='redis://localhost:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+        'KEY_PREFIX': 'crm',
+        'TIMEOUT': 300,  # 5 minutes default
+    }
+}
+
+# Cache time to live settings
+CACHE_TTL = {
+    'customer_list': 60 * 5,  # 5 minutes
+    'course_list': 60 * 15,   # 15 minutes
+    'country_codes': 60 * 60 * 24,  # 24 hours
+    'dashboard_stats': 60 * 10,  # 10 minutes
+}
 
 # Celery Configuration
 CELERY_BROKER_URL = config('REDIS_URL', default='redis://localhost:6379/0')

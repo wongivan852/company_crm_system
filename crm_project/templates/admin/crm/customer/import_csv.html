@@ -1,0 +1,171 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url 'admin:crm_customer_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<div class="module aligned">
+    <h2>Upload CSV File</h2>
+    
+    <div class="form-row">
+        <div class="help">
+            <p><strong>Supported formats:</strong> CSV files with UTF-8 or Latin-1 encoding</p>
+            <p><strong>Required fields:</strong> 
+                {% for field in mandatory_fields %}
+                    <span class="nowrap">{{ field }}{% if not forloop.last %}, {% endif %}</span>
+                {% endfor %}
+            </p>
+            <p><strong>File size limit:</strong> 10MB</p>
+        </div>
+    </div>
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div class="form-row">
+            <div>
+                <label for="id_csv_file">CSV file:</label>
+                <input type="file" name="csv_file" id="id_csv_file" accept=".csv" required>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div>
+                <label for="id_default_source">Default data source for import:</label>
+                <select name="default_source" id="id_default_source" class="form-select">
+                    <option value="csv_import">CSV Import (default)</option>
+                    <optgroup label="Digital Marketing">
+                        <option value="website">Website</option>
+                        <option value="google_search">Google Search</option>
+                        <option value="social_media">Social Media</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="twitter">Twitter/X</option>
+                        <option value="youtube">YouTube</option>
+                        <option value="email_marketing">Email Marketing</option>
+                        <option value="google_ads">Google Ads</option>
+                        <option value="facebook_ads">Facebook Ads</option>
+                        <option value="online_ad">Online Advertisement</option>
+                    </optgroup>
+                    <optgroup label="Traditional Marketing">
+                        <option value="print_ad">Print Advertisement</option>
+                        <option value="radio">Radio</option>
+                        <option value="tv">Television</option>
+                        <option value="billboard">Billboard</option>
+                        <option value="flyer">Flyer/Brochure</option>
+                    </optgroup>
+                    <optgroup label="Referrals & Word of Mouth">
+                        <option value="referral">Referral</option>
+                        <option value="word_of_mouth">Word of Mouth</option>
+                        <option value="existing_customer">Existing Customer</option>
+                        <option value="partner">Partner/Affiliate</option>
+                        <option value="employee">Employee Referral</option>
+                    </optgroup>
+                    <optgroup label="Events & Outreach">
+                        <option value="conference">Conference/Event</option>
+                        <option value="workshop">Workshop</option>
+                        <option value="webinar">Webinar</option>
+                        <option value="trade_show">Trade Show</option>
+                        <option value="seminar">Seminar</option>
+                        <option value="cold_call">Cold Call</option>
+                        <option value="cold_email">Cold Email</option>
+                    </optgroup>
+                    <optgroup label="Import Sources">
+                        <option value="data_migration">Data Migration</option>
+                        <option value="api_import">API Import</option>
+                        <option value="bulk_upload">Bulk Upload</option>
+                    </optgroup>
+                    <optgroup label="Direct Contact">
+                        <option value="walk_in">Walk-in</option>
+                        <option value="phone_inquiry">Phone Inquiry</option>
+                        <option value="email_inquiry">Email Inquiry</option>
+                        <option value="contact_form">Contact Form</option>
+                    </optgroup>
+                    <optgroup label="Other">
+                        <option value="other">Other</option>
+                        <option value="unknown">Unknown</option>
+                    </optgroup>
+                </select>
+                <p class="help">This will be applied to all customers in the CSV unless they have their own source column.</p>
+            </div>
+        </div>
+        
+        <div class="submit-row">
+            <input type="submit" name="preview" value="Preview Import" class="default">
+            <a href="{% url 'admin:crm_customer_changelist' %}" class="button cancel-link">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<div class="module">
+    <h2>Field Mapping Reference</h2>
+    
+    <div class="results">
+        <table>
+            <thead>
+                <tr>
+                    <th>Field</th>
+                    <th>Accepted Column Names</th>
+                    <th>Required</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for field, variations in field_mappings.items %}
+                <tr class="{% cycle 'row1' 'row2' %}">
+                    <td><strong>{{ field }}</strong></td>
+                    <td>{{ variations|join:", " }}</td>
+                    <td>
+                        {% if field in mandatory_fields %}
+                            <span style="color: #d63384;">✓ Required</span>
+                        {% else %}
+                            Optional
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="module">
+    <h2>Sample CSV Format</h2>
+    
+    <div class="form-row">
+        <pre style="background: #f8f9fa; padding: 15px; border: 1px solid #dee2e6; border-radius: 4px; overflow-x: auto;">first_name,last_name,email,phone,company,customer_type
+John,Smith,john.smith@email.com,+1-555-0123,ABC Corp,individual
+Jane,Doe,jane.doe@email.com,+1-555-0124,XYZ Inc,corporate</pre>
+    </div>
+    
+    <div class="help">
+        <p><strong>Tips:</strong></p>
+        <ul>
+            <li>First row must contain column headers</li>
+            <li>System auto-detects field mappings based on common naming patterns</li>
+            <li>Duplicate emails will be skipped with warnings</li>
+            <li>Invalid data will be reported with specific error messages</li>
+        </ul>
+    </div>
+</div>
+
+<style>
+.nowrap { white-space: nowrap; }
+pre { 
+    font-family: 'Monaco', 'Consolas', monospace; 
+    font-size: 12px; 
+    line-height: 1.4;
+}
+</style>
+{% endblock %}

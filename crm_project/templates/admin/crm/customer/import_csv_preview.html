@@ -1,0 +1,170 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify custom_filters %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url 'admin:crm_customer_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; <a href="{% url 'admin:crm_customer_import_csv' %}">Import CSV</a>
+&rsaquo; {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<div class="module">
+    <h2>Import Summary</h2>
+    
+    <div class="form-row">
+        <p><strong>Total rows detected:</strong> {{ preview_result.total_rows_detected }}</p>
+        <p><strong>Default data source:</strong> {{ request.session.default_source|default:"csv_import" }}</p>
+        
+        {% if preview_result.missing_fields %}
+        <div class="errornote">
+            <strong>Missing required fields:</strong> {{ preview_result.missing_fields|join:", " }}
+            <br><small>Please ensure your CSV has columns for these required fields and try again.</small>
+        </div>
+        {% endif %}
+        
+        {% if preview_result.unmapped_headers %}
+        <div class="warning">
+            <strong>Unmapped columns:</strong> {{ preview_result.unmapped_headers|join:", " }}
+            <br><small>These columns will be ignored during import.</small>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="module">
+    <h2>Field Mapping</h2>
+    
+    <div class="results">
+        <table>
+            <thead>
+                <tr>
+                    <th>CSV Column</th>
+                    <th>Mapped to Field</th>
+                    <th>Status</th>
+                    <th>Sample Data</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for header in preview_result.headers %}
+                <tr class="{% cycle 'row1' 'row2' %}">
+                    <td><strong>{{ header }}</strong></td>
+                    <td>
+                        {% if header in preview_result.field_mapping %}
+                            <span style="color: #28a745;">{{ preview_result.field_mapping|lookup:header }}</span>
+                        {% else %}
+                            <span style="color: #6c757d;">Not mapped</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if header in preview_result.field_mapping %}
+                            {% with mapped_field=preview_result.field_mapping|lookup:header %}
+                                {% if mapped_field in preview_result.missing_fields %}
+                                    <span style="color: #dc3545;">Required</span>
+                                {% else %}
+                                    <span style="color: #28a745;">Mapped</span>
+                                {% endif %}
+                            {% endwith %}
+                        {% else %}
+                            <span style="color: #ffc107;">Optional</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if preview_result.sample_rows %}
+                            <code>{{ preview_result.sample_rows.0|lookup:header|truncatechars:50 }}</code>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if preview_result.sample_rows and not preview_result.missing_fields %}
+<div class="module">
+    <h2>Sample Data Preview</h2>
+    
+    <div class="results">
+        <table>
+            <thead>
+                <tr>
+                    {% for csv_field, model_field in preview_result.field_mapping.items %}
+                    <th>{{ model_field }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in preview_result.sample_rows|slice:":5" %}
+                <tr class="{% cycle 'row1' 'row2' %}">
+                    {% for csv_field, model_field in preview_result.field_mapping.items %}
+                    <td>{{ row|lookup:csv_field|default:"" }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    {% if preview_result.sample_rows|length > 5 %}
+    <p><small>Showing first 5 rows of {{ preview_result.total_rows_detected }} total rows.</small></p>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="submit-row">
+    {% if not preview_result.missing_fields %}
+    <form method="post" style="display: inline;">
+        {% csrf_token %}
+        <input type="submit" name="import" value="Import {{ preview_result.total_rows_detected }} Customers" class="default">
+    </form>
+    {% endif %}
+    
+    <a href="{% url 'admin:crm_customer_import_csv' %}" class="button">Back to Upload</a>
+    <a href="{% url 'admin:crm_customer_changelist' %}" class="button cancel-link">Cancel</a>
+</div>
+
+<style>
+.warning {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+    padding: 10px;
+    border-radius: 4px;
+    margin: 10px 0;
+}
+
+code {
+    background: #f8f9fa;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 11px;
+}
+
+.results table {
+    font-size: 12px;
+}
+
+.results table th,
+.results table td {
+    padding: 8px;
+    vertical-align: top;
+}
+</style>
+
+{% endblock %}
+
+<!-- Add a simple template filter for dict lookup -->
+{% load static %}
+<script>
+// Add this to handle dict lookups in templates
+</script>
+
