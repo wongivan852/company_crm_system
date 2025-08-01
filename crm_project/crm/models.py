@@ -2,7 +2,9 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import EmailValidator, URLValidator
+from django.core.exceptions import ValidationError
 import uuid
+import re
 
 class Customer(models.Model):
     CUSTOMER_TYPES = [
@@ -10,6 +12,7 @@ class Customer(models.Model):
         ('corporate', 'Corporate Client'),
         ('student', 'Student'),
         ('instructor', 'Instructor'),
+        ('youtuber', 'YouTuber/Content Creator'),
     ]
     
     STATUS_CHOICES = [
@@ -21,9 +24,9 @@ class Customer(models.Model):
     
     # Core Identity
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    first_name = models.CharField(max_length=100, blank=True, help_text="Given name/First name (optional)")
+    first_name = models.CharField(max_length=100, help_text="Given name/First name", blank=True)
     middle_name = models.CharField(max_length=100, blank=True, help_text="Middle name(s)")
-    last_name = models.CharField(max_length=100, help_text="Family name/Last name/Surname")
+    last_name = models.CharField(max_length=100, help_text="Family name/Last name/Surname", blank=True)
     preferred_name = models.CharField(max_length=100, blank=True, help_text="Nickname or preferred name")
     name_suffix = models.CharField(max_length=20, blank=True, help_text="Jr., Sr., III, etc.")
     
@@ -100,8 +103,8 @@ class Customer(models.Model):
     emergency_contact_phone = models.CharField(max_length=20, blank=True, help_text="Emergency contact phone number")
     emergency_contact_email = models.EmailField(blank=True, help_text="Emergency contact email")
     
-    # Multiple Email Addresses
-    email_primary = models.EmailField(unique=True, validators=[EmailValidator()], help_text="Primary email address")
+    # Multiple Email Addresses  
+    email_primary = models.EmailField(validators=[EmailValidator()], help_text="Primary email address", blank=True, null=True)
     email_secondary = models.EmailField(blank=True, validators=[EmailValidator()], help_text="Secondary email address")
     
     # Multiple Phone Numbers with country codes
@@ -122,6 +125,8 @@ class Customer(models.Model):
     facebook_profile = models.URLField(blank=True, validators=[URLValidator()], help_text="Facebook profile URL")
     twitter_handle = models.CharField(max_length=100, blank=True, help_text="Twitter/X handle (without @)")
     instagram_handle = models.CharField(max_length=100, blank=True, help_text="Instagram handle (without @)")
+    youtube_handle = models.CharField(max_length=100, blank=True, null=True, help_text="YouTube handle (without @)")
+    youtube_channel_url = models.URLField(blank=True, validators=[URLValidator()], help_text="Full YouTube channel URL")
     
     # Geographic Information with comprehensive country/region choices
     COUNTRY_CHOICES = [
@@ -455,69 +460,8 @@ class Customer(models.Model):
     internal_notes = models.TextField(blank=True, help_text="Internal notes (not visible to customer)")
     special_requirements = models.TextField(blank=True, help_text="Special requirements or accommodations")
     
-    # Data Source Tracking
-    SOURCE_CHOICES = [
-        ('', 'Select Source'),
-        # Digital Marketing
-        ('website', 'Website'),
-        ('google_search', 'Google Search'),
-        ('social_media', 'Social Media'),
-        ('facebook', 'Facebook'),
-        ('linkedin', 'LinkedIn'),
-        ('instagram', 'Instagram'),
-        ('twitter', 'Twitter/X'),
-        ('youtube', 'YouTube'),
-        ('email_marketing', 'Email Marketing'),
-        ('google_ads', 'Google Ads'),
-        ('facebook_ads', 'Facebook Ads'),
-        ('online_ad', 'Online Advertisement'),
-        
-        # Traditional Marketing
-        ('print_ad', 'Print Advertisement'),
-        ('radio', 'Radio'),
-        ('tv', 'Television'),
-        ('billboard', 'Billboard'),
-        ('flyer', 'Flyer/Brochure'),
-        
-        # Referrals & Word of Mouth
-        ('referral', 'Referral'),
-        ('word_of_mouth', 'Word of Mouth'),
-        ('existing_customer', 'Existing Customer'),
-        ('partner', 'Partner/Affiliate'),
-        ('employee', 'Employee Referral'),
-        
-        # Events & Outreach
-        ('conference', 'Conference/Event'),
-        ('workshop', 'Workshop'),
-        ('webinar', 'Webinar'),
-        ('trade_show', 'Trade Show'),
-        ('seminar', 'Seminar'),
-        ('cold_call', 'Cold Call'),
-        ('cold_email', 'Cold Email'),
-        
-        # Import Sources
-        ('csv_import', 'CSV Import'),
-        ('data_migration', 'Data Migration'),
-        ('api_import', 'API Import'),
-        ('bulk_upload', 'Bulk Upload'),
-        
-        # Direct Contact
-        ('walk_in', 'Walk-in'),
-        ('phone_inquiry', 'Phone Inquiry'),
-        ('email_inquiry', 'Email Inquiry'),
-        ('contact_form', 'Contact Form'),
-        
-        # Other
-        ('other', 'Other'),
-        ('unknown', 'Unknown'),
-    ]
-    
-    source = models.CharField(
-        max_length=100, 
-        choices=SOURCE_CHOICES,
-        blank=True, 
-        help_text="How customer found us"
-    )
+    # System Fields
+    source = models.CharField(max_length=100, blank=True, help_text="How customer found us")
     referral_source = models.CharField(max_length=100, blank=True, help_text="Referral source if applicable")
     
     # Timestamps
@@ -595,6 +539,69 @@ class Customer(models.Model):
             if not hasattr(self, 'emergency_contact_country_code'):
                 # This field doesn't exist yet, will be added in next enhancement
                 pass
+    
+    
+    def clean(self):
+        """Custom model validation with special handling for YouTuber clients"""
+        super().clean()
+        
+        # Special handling for YouTuber customer type
+        if self.customer_type == 'youtuber' and self.youtube_handle:
+            # Remove @ if user included it
+            self.youtube_handle = self.youtube_handle.lstrip('@')
+            
+            # Auto-generate required fields from YouTube handle if missing
+            if not self.first_name:
+                self.first_name = self.youtube_handle.replace('_', ' ').replace('.', ' ').title()
+            
+            if not self.last_name:
+                self.last_name = 'Creator'
+            
+            # Email is now optional - don't auto-generate
+            # if not self.email_primary:
+            #     self.email_primary = f"{self.youtube_handle}@youtube-lead.com"
+            
+            if not self.preferred_communication_method:
+                self.preferred_communication_method = 'email'
+            
+            if not self.status:
+                self.status = 'prospect'
+            
+            # Auto-generate YouTube URL
+            if not self.youtube_channel_url:
+                self.youtube_channel_url = f"https://youtube.com/@{self.youtube_handle}"
+        
+        # Regular YouTube validation for other customer types
+        elif self.youtube_handle:
+            # Remove @ if user included it
+            self.youtube_handle = self.youtube_handle.lstrip('@')
+            
+            # Basic validation - allow more flexibility for lead data
+            if len(self.youtube_handle.strip()) < 2:
+                from django.core.exceptions import ValidationError
+                raise ValidationError({'youtube_handle': 'YouTube handle too short'})
+            
+            # Auto-generate URL from handle
+            if not self.youtube_channel_url:
+                self.youtube_channel_url = f"https://youtube.com/@{self.youtube_handle}"
+        
+        # Check for duplicate YouTube handles (for any customer type with youtube_handle)
+        if self.youtube_handle:
+            from django.core.exceptions import ValidationError
+            existing = Customer.objects.filter(youtube_handle__iexact=self.youtube_handle)
+            if self.pk:
+                existing = existing.exclude(pk=self.pk)
+            if existing.exists():
+                existing_customer = existing.first()
+                raise ValidationError({
+                    'youtube_handle': f'YouTube handle "@{self.youtube_handle}" is already used by {existing_customer.first_name} {existing_customer.last_name} (ID: {existing_customer.id})'
+                })
+        
+        # If URL provided but no handle, extract it
+        elif self.youtube_channel_url and not self.youtube_handle:
+            match = re.search(r'youtube\.com/@([a-zA-Z0-9._-]+)', self.youtube_channel_url)
+            if match:
+                self.youtube_handle = match.group(1)
     
     def save(self, *args, **kwargs):
         """Override save to automatically set country codes"""
@@ -755,6 +762,7 @@ class CommunicationLog(models.Model):
         ('wechat', 'WeChat'),
         ('phone', 'Phone'),
         ('in_person', 'In Person'),
+        ('youtube', 'YouTube'),
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -771,297 +779,122 @@ class CommunicationLog(models.Model):
     def __str__(self):
         return f"{self.customer} - {self.channel} - {self.subject}"
 
-class EmailTemplate(models.Model):
-    """Email templates for standardized communications"""
-    
-    TEMPLATE_TYPES = [
-        ('welcome', 'Welcome Email'),
-        ('course_reminder', 'Course Reminder'),
-        ('enrollment_confirmation', 'Enrollment Confirmation'),
-        ('payment_confirmation', 'Payment Confirmation'),
-        ('newsletter', 'Newsletter'),
-        ('marketing', 'Marketing Email'),
-        ('event_invitation', 'Event Invitation'),
-        ('follow_up', 'Follow-up Email'),
-        ('survey', 'Survey Request'),
-        ('birthday', 'Birthday Wishes'),
-        ('custom', 'Custom Template'),
-    ]
-    
-    STATUS_CHOICES = [
-        ('draft', 'Draft'),
-        ('active', 'Active'),
-        ('archived', 'Archived'),
-    ]
-    
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=200, help_text="Template name for internal reference")
-    template_type = models.CharField(max_length=30, choices=TEMPLATE_TYPES)
-    subject = models.CharField(max_length=200, help_text="Email subject line (supports variables)")
-    content_text = models.TextField(help_text="Plain text content (supports variables)")
-    content_html = models.TextField(blank=True, help_text="HTML content (supports variables)")
-    
-    # Template variables and personalization
-    available_variables = models.TextField(
-        blank=True,
-        help_text="Available template variables (JSON format): {{first_name}}, {{course_title}}, etc."
-    )
-    
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
-    
-    # Metadata
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.CharField(max_length=100, blank=True, help_text="Who created this template")
-    
-    # Usage tracking
-    usage_count = models.PositiveIntegerField(default=0, help_text="How many times this template has been used")
-    last_used = models.DateTimeField(null=True, blank=True)
-    
-    class Meta:
-        ordering = ['-updated_at']
-        indexes = [
-            models.Index(fields=['template_type', 'status']),
-            models.Index(fields=['status', '-updated_at']),
-        ]
-    
-    def __str__(self):
-        return f"{self.name} ({self.get_template_type_display()})"
-    
-    def increment_usage(self):
-        """Increment usage counter and update last_used timestamp"""
-        from django.utils import timezone
-        self.usage_count += 1
-        self.last_used = timezone.now()
-        self.save(update_fields=['usage_count', 'last_used'])
 
-class EmailCampaign(models.Model):
-    """Email marketing campaigns"""
+class YouTubeMessage(models.Model):
+    """Model for tracking YouTube messages sent to customers"""
     
-    STATUS_CHOICES = [
+    MESSAGE_STATUS = [
         ('draft', 'Draft'),
-        ('scheduled', 'Scheduled'),
-        ('sending', 'Sending'),
+        ('pending', 'Pending Send'),
         ('sent', 'Sent'),
-        ('paused', 'Paused'),
-        ('cancelled', 'Cancelled'),
+        ('delivered', 'Delivered'),
+        ('read', 'Read'),
+        ('replied', 'Replied'),
+        ('failed', 'Failed'),
+        ('bounced', 'Bounced'),
     ]
     
-    TARGET_AUDIENCE_CHOICES = [
-        ('all_customers', 'All Customers'),
-        ('active_customers', 'Active Customers'),
-        ('prospects', 'Prospects'),
-        ('students', 'Students'),
-        ('corporate_clients', 'Corporate Clients'),
-        ('newsletter_subscribers', 'Newsletter Subscribers'),
-        ('marketing_consent', 'Marketing Consent Given'),
-        ('custom_filter', 'Custom Filter'),
+    MESSAGE_TYPE = [
+        ('direct_message', 'Direct Message'),
+        ('comment', 'Video Comment'),
+        ('community_post', 'Community Post'),
+        ('collaboration', 'Collaboration Request'),
+        ('business', 'Business Inquiry'),
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=200)
-    description = models.TextField(blank=True)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='youtube_messages')
     
-    # Campaign content
-    template = models.ForeignKey(EmailTemplate, on_delete=models.SET_NULL, null=True, blank=True)
-    subject = models.CharField(max_length=200)
-    content_text = models.TextField()
-    content_html = models.TextField(blank=True)
+    # Message Details
+    message_type = models.CharField(max_length=20, choices=MESSAGE_TYPE, default='direct_message')
+    subject = models.CharField(max_length=200, help_text="Message subject or title")
+    content = models.TextField(help_text="Message content")
     
-    # Targeting
-    target_audience = models.CharField(max_length=30, choices=TARGET_AUDIENCE_CHOICES)
-    custom_filter = models.JSONField(blank=True, null=True, help_text="Custom filter criteria in JSON format")
+    # YouTube-specific fields
+    target_youtube_handle = models.CharField(max_length=100, help_text="YouTube handle to send to")
+    target_video_url = models.URLField(blank=True, help_text="Specific video URL if commenting")
     
-    # Scheduling
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
-    scheduled_at = models.DateTimeField(null=True, blank=True)
+    # Status tracking
+    status = models.CharField(max_length=20, choices=MESSAGE_STATUS, default='draft')
+    priority = models.IntegerField(default=3, help_text="1=High, 2=Medium, 3=Low")
+    
+    # Sending details
+    sent_by = models.CharField(max_length=100, blank=True, help_text="Who sent the message")
     sent_at = models.DateTimeField(null=True, blank=True)
     
-    # Campaign metrics
-    total_recipients = models.PositiveIntegerField(default=0)
-    emails_sent = models.PositiveIntegerField(default=0)
-    emails_delivered = models.PositiveIntegerField(default=0)
-    emails_opened = models.PositiveIntegerField(default=0)
-    emails_clicked = models.PositiveIntegerField(default=0)
-    emails_bounced = models.PositiveIntegerField(default=0)
-    emails_failed = models.PositiveIntegerField(default=0)
+    # Response tracking
+    response_received = models.BooleanField(default=False)
+    response_content = models.TextField(blank=True, help_text="Response received from YouTuber")
+    response_received_at = models.DateTimeField(null=True, blank=True)
     
-    # Metadata
+    # Metrics
+    message_opened = models.BooleanField(default=False)
+    opened_at = models.DateTimeField(null=True, blank=True)
+    click_count = models.IntegerField(default=0)
+    
+    # Error tracking
+    error_message = models.TextField(blank=True, help_text="Error details if send failed")
+    retry_count = models.IntegerField(default=0)
+    max_retries = models.IntegerField(default=3)
+    
+    # External tracking
+    external_message_id = models.CharField(max_length=200, blank=True, help_text="External service message ID")
+    platform_data = models.JSONField(default=dict, blank=True, help_text="Platform-specific data")
+    
+    # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.CharField(max_length=100, blank=True)
     
     class Meta:
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['status', '-created_at']),
-            models.Index(fields=['target_audience', 'status']),
+            models.Index(fields=['customer', 'status']),
+            models.Index(fields=['target_youtube_handle']),
+            models.Index(fields=['sent_at']),
         ]
     
     def __str__(self):
-        return f"{self.name} ({self.get_status_display()})"
+        return f"@{self.target_youtube_handle}: {self.subject} ({self.status})"
     
     @property
-    def open_rate(self):
-        """Calculate email open rate percentage"""
-        if self.emails_delivered > 0:
-            return round((self.emails_opened / self.emails_delivered) * 100, 2)
-        return 0
+    def is_successful(self):
+        """Check if message was successfully sent"""
+        return self.status in ['sent', 'delivered', 'read', 'replied']
     
     @property
-    def click_rate(self):
-        """Calculate email click rate percentage"""
-        if self.emails_delivered > 0:
-            return round((self.emails_clicked / self.emails_delivered) * 100, 2)
-        return 0
+    def needs_retry(self):
+        """Check if message needs retry"""
+        return self.status == 'failed' and self.retry_count < self.max_retries
     
-    @property
-    def bounce_rate(self):
-        """Calculate email bounce rate percentage"""
-        if self.emails_sent > 0:
-            return round((self.emails_bounced / self.emails_sent) * 100, 2)
-        return 0
-
-class EmailLog(models.Model):
-    """Detailed logging for individual email sends"""
-    
-    STATUS_CHOICES = [
-        ('queued', 'Queued'),
-        ('sending', 'Sending'),
-        ('sent', 'Sent'),
-        ('delivered', 'Delivered'),
-        ('opened', 'Opened'),
-        ('clicked', 'Clicked'),
-        ('bounced', 'Bounced'),
-        ('failed', 'Failed'),
-        ('unsubscribed', 'Unsubscribed'),
-        ('complained', 'Spam Complaint'),
-    ]
-    
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    campaign = models.ForeignKey(EmailCampaign, on_delete=models.CASCADE, null=True, blank=True)
-    template = models.ForeignKey(EmailTemplate, on_delete=models.SET_NULL, null=True, blank=True)
-    
-    # Email details
-    recipient_email = models.EmailField()
-    subject = models.CharField(max_length=200)
-    content_text = models.TextField()
-    content_html = models.TextField(blank=True)
-    
-    # Status and tracking
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='queued')
-    external_message_id = models.CharField(max_length=200, blank=True)
-    
-    # Timestamps
-    queued_at = models.DateTimeField(auto_now_add=True)
-    sent_at = models.DateTimeField(null=True, blank=True)
-    delivered_at = models.DateTimeField(null=True, blank=True)
-    opened_at = models.DateTimeField(null=True, blank=True)
-    clicked_at = models.DateTimeField(null=True, blank=True)
-    bounced_at = models.DateTimeField(null=True, blank=True)
-    failed_at = models.DateTimeField(null=True, blank=True)
-    
-    # Error handling
-    error_message = models.TextField(blank=True)
-    retry_count = models.PositiveIntegerField(default=0)
-    max_retries = models.PositiveIntegerField(default=3)
-    
-    # Analytics
-    ip_address = models.GenericIPAddressField(null=True, blank=True, help_text="IP address for opens/clicks")
-    user_agent = models.TextField(blank=True, help_text="User agent for opens/clicks")
-    
-    class Meta:
-        ordering = ['-queued_at']
-        indexes = [
-            models.Index(fields=['customer', '-queued_at']),
-            models.Index(fields=['campaign', 'status']),
-            models.Index(fields=['status', '-queued_at']),
-            models.Index(fields=['recipient_email', '-queued_at']),
-        ]
-    
-    def __str__(self):
-        return f"Email to {self.recipient_email} - {self.get_status_display()}"
-    
-    def update_status(self, new_status, error_message=None, ip_address=None, user_agent=None):
-        """Update email status with timestamp"""
+    def mark_as_sent(self, external_id=None, sent_by=None):
+        """Mark message as sent"""
         from django.utils import timezone
-        
-        self.status = new_status
-        timestamp = timezone.now()
-        
-        if new_status == 'sent':
-            self.sent_at = timestamp
-        elif new_status == 'delivered':
-            self.delivered_at = timestamp
-        elif new_status == 'opened':
-            self.opened_at = timestamp
-            if ip_address:
-                self.ip_address = ip_address
-            if user_agent:
-                self.user_agent = user_agent
-        elif new_status == 'clicked':
-            self.clicked_at = timestamp
-            if ip_address:
-                self.ip_address = ip_address
-            if user_agent:
-                self.user_agent = user_agent
-        elif new_status == 'bounced':
-            self.bounced_at = timestamp
-        elif new_status == 'failed':
-            self.failed_at = timestamp
-        
-        if error_message:
-            self.error_message = error_message
-        
+        self.status = 'sent'
+        self.sent_at = timezone.now()
+        if external_id:
+            self.external_message_id = external_id
+        if sent_by:
+            self.sent_by = sent_by
         self.save()
-
-class EmailSubscription(models.Model):
-    """Manage email subscriptions and unsubscribes"""
     
-    SUBSCRIPTION_TYPES = [
-        ('newsletter', 'Newsletter'),
-        ('marketing', 'Marketing Emails'),
-        ('course_updates', 'Course Updates'),
-        ('event_notifications', 'Event Notifications'),
-        ('system_notifications', 'System Notifications'),
-    ]
+    def mark_as_failed(self, error_message):
+        """Mark message as failed with error"""
+        self.status = 'failed'
+        self.error_message = error_message
+        self.retry_count += 1
+        self.save()
     
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    subscription_type = models.CharField(max_length=30, choices=SUBSCRIPTION_TYPES)
-    is_subscribed = models.BooleanField(default=True)
-    
-    # Tracking
-    subscribed_at = models.DateTimeField(auto_now_add=True)
-    unsubscribed_at = models.DateTimeField(null=True, blank=True)
-    unsubscribe_reason = models.CharField(max_length=200, blank=True)
-    
-    # Unsubscribe token for secure unsubscribe links
-    unsubscribe_token = models.CharField(max_length=64, unique=True, blank=True)
-    
-    class Meta:
-        unique_together = ['customer', 'subscription_type']
-        indexes = [
-            models.Index(fields=['customer', 'is_subscribed']),
-            models.Index(fields=['subscription_type', 'is_subscribed']),
-        ]
-    
-    def __str__(self):
-        status = "Subscribed" if self.is_subscribed else "Unsubscribed"
-        return f"{self.customer.email_primary} - {self.get_subscription_type_display()} ({status})"
-    
-    def save(self, *args, **kwargs):
-        if not self.unsubscribe_token:
-            import secrets
-            self.unsubscribe_token = secrets.token_urlsafe(32)
-        super().save(*args, **kwargs)
-    
-    def unsubscribe(self, reason=None):
-        """Unsubscribe user with timestamp and reason"""
+    def mark_as_replied(self, response_content):
+        """Mark message as replied with response"""
         from django.utils import timezone
-        self.is_subscribed = False
-        self.unsubscribed_at = timezone.now()
-        if reason:
-            self.unsubscribe_reason = reason
+        self.status = 'replied'
+        self.response_received = True
+        self.response_content = response_content
+        self.response_received_at = timezone.now()
         self.save()
+    
+    def get_target_url(self):
+        """Get the target YouTube URL for messaging"""
+        if self.target_video_url:
+            return self.target_video_url
+        return f"https://youtube.com/@{self.target_youtube_handle}"

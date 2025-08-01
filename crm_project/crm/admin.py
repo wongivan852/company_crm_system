@@ -6,10 +6,13 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.template.response import TemplateResponse
+from django.utils import timezone
+from django.db import models
+from django.db.models import Q, Count
 from .models import (
     Customer, Course, Enrollment, Conference, ConferenceRegistration, 
-    CommunicationLog, CustomerCommunicationPreference, EmailTemplate, 
-    EmailCampaign, EmailLog, EmailSubscription
+    CommunicationLog, CustomerCommunicationPreference, YouTubeMessage
+    # EmailTemplate, EmailCampaign, EmailLog, EmailSubscription  # Temporarily commented out
 )
 from .communication_services import CommunicationManager
 from .csv_import_handler import CSVImportHandler
@@ -51,7 +54,7 @@ class CustomerAdmin(admin.ModelAdmin):
             'fields': ('whatsapp_number', 'wechat_id')
         }),
         ('Social Media', {
-            'fields': ('linkedin_profile', 'facebook_profile', 'twitter_handle', 'instagram_handle'),
+            'fields': ('linkedin_profile', 'facebook_profile', 'twitter_handle', 'instagram_handle', 'youtube_handle', 'youtube_channel_url'),
             'classes': ('collapse',)
         }),
         ('Professional Information', {
@@ -419,7 +422,7 @@ class CommunicationLogAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return False  # Prevent manual creation of communication logs
 
-@admin.register(EmailTemplate)
+# @admin.register(EmailTemplate)  # Temporarily commented out
 class EmailTemplateAdmin(admin.ModelAdmin):
     list_display = ['name', 'template_type', 'status', 'usage_count', 'last_used', 'updated_at']
     list_filter = ['template_type', 'status', 'created_at']
@@ -472,7 +475,7 @@ class EmailTemplateAdmin(admin.ModelAdmin):
         self.message_user(request, f'{count} templates duplicated.')
     duplicate_template.short_description = "Duplicate selected templates"
 
-@admin.register(EmailCampaign)
+# @admin.register(EmailCampaign)  # Temporarily commented out
 class EmailCampaignAdmin(admin.ModelAdmin):
     list_display = [
         'name', 'status', 'target_audience', 'total_recipients', 
@@ -559,7 +562,7 @@ class EmailCampaignAdmin(admin.ModelAdmin):
         self.message_user(request, f'{count} campaigns duplicated.')
     duplicate_campaigns.short_description = "Duplicate selected campaigns"
 
-@admin.register(EmailLog)
+# @admin.register(EmailLog)  # Temporarily commented out
 class EmailLogAdmin(admin.ModelAdmin):
     list_display = [
         'recipient_email', 'customer', 'campaign', 'status', 
@@ -599,7 +602,7 @@ class EmailLogAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return False  # Prevent manual creation of email logs
 
-@admin.register(EmailSubscription)
+# @admin.register(EmailSubscription)  # Temporarily commented out
 class EmailSubscriptionAdmin(admin.ModelAdmin):
     list_display = [
         'customer', 'subscription_type', 'is_subscribed', 
@@ -645,3 +648,221 @@ class EmailSubscriptionAdmin(admin.ModelAdmin):
                 count += 1
         self.message_user(request, f'{count} customers unsubscribed.')
     unsubscribe_customers.short_description = "Unsubscribe selected customers"
+
+@admin.register(YouTubeMessage)
+class YouTubeMessageAdmin(admin.ModelAdmin):
+    list_display = [
+        'target_youtube_handle', 'customer', 'subject', 'message_type', 
+        'status', 'priority_display', 'sent_at', 'response_received'
+    ]
+    list_filter = [
+        'message_type', 'status', 'priority', 'response_received', 
+        'created_at', 'sent_at'
+    ]
+    search_fields = [
+        'target_youtube_handle', 'subject', 'content', 
+        'customer__first_name', 'customer__last_name'
+    ]
+    readonly_fields = [
+        'id', 'created_at', 'updated_at', 'sent_at', 'response_received_at',
+        'opened_at', 'external_message_id'
+    ]
+    
+    fieldsets = (
+        ('Message Details', {
+            'fields': ('customer', 'message_type', 'subject', 'content')
+        }),
+        ('Target Information', {
+            'fields': ('target_youtube_handle', 'target_video_url')
+        }),
+        ('Status & Priority', {
+            'fields': ('status', 'priority', 'sent_by')
+        }),
+        ('Response Tracking', {
+            'fields': ('response_received', 'response_content', 'response_received_at'),
+            'classes': ('collapse',)
+        }),
+        ('Engagement Metrics', {
+            'fields': ('message_opened', 'opened_at', 'click_count'),
+            'classes': ('collapse',)
+        }),
+        ('Error Handling', {
+            'fields': ('error_message', 'retry_count', 'max_retries'),
+            'classes': ('collapse',)
+        }),
+        ('System Information', {
+            'fields': ('external_message_id', 'platform_data'),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('id', 'created_at', 'updated_at', 'sent_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    actions = ['send_messages', 'retry_failed_messages', 'mark_as_read']
+    
+    def priority_display(self, obj):
+        priority_map = {1: '🔴 High', 2: '🟡 Medium', 3: '🟢 Low'}
+        return priority_map.get(obj.priority, f'{obj.priority}')
+    priority_display.short_description = 'Priority'
+    priority_display.admin_order_field = 'priority'
+    
+    def send_messages(self, request, queryset):
+        from .youtube_service import youtube_service
+        
+        sent_count = 0
+        failed_count = 0
+        
+        for message in queryset.filter(status__in=['draft', 'pending']):
+            try:
+                success, result_msg = youtube_service._send_message(message)
+                if success:
+                    message.mark_as_sent(
+                        external_id=f"yt_{message.id}",
+                        sent_by=request.user.get_full_name() or request.user.username
+                    )
+                    sent_count += 1
+                else:
+                    message.mark_as_failed(result_msg)
+                    failed_count += 1
+            except Exception as e:
+                message.mark_as_failed(str(e))
+                failed_count += 1
+        
+        if sent_count > 0:
+            self.message_user(request, f'✅ {sent_count} messages sent successfully.')
+        if failed_count > 0:
+            self.message_user(
+                request, 
+                f'❌ {failed_count} messages failed to send.',
+                level=messages.WARNING
+            )
+    send_messages.short_description = "Send selected messages"
+    
+    def retry_failed_messages(self, request, queryset):
+        from .youtube_service import youtube_service
+        
+        retried_count = 0
+        success_count = 0
+        
+        for message in queryset.filter(status='failed'):
+            if message.retry_count < message.max_retries:
+                try:
+                    success, result_msg = youtube_service._send_message(message)
+                    if success:
+                        message.mark_as_sent(
+                            external_id=f"yt_{message.id}",
+                            sent_by=request.user.get_full_name() or request.user.username
+                        )
+                        success_count += 1
+                    else:
+                        message.mark_as_failed(result_msg)
+                    retried_count += 1
+                except Exception as e:
+                    message.mark_as_failed(str(e))
+                    retried_count += 1
+        
+        if retried_count > 0:
+            self.message_user(
+                request, 
+                f'🔄 Retried {retried_count} messages. {success_count} succeeded.'
+            )
+        else:
+            self.message_user(
+                request, 
+                'No messages available for retry (max retries reached).',
+                level=messages.INFO
+            )
+    retry_failed_messages.short_description = "Retry failed messages"
+    
+    def mark_as_read(self, request, queryset):
+        count = 0
+        for message in queryset.filter(status__in=['sent', 'delivered']):
+            if not message.message_opened:
+                message.message_opened = True
+                message.opened_at = timezone.now()
+                message.save()
+                count += 1
+        
+        self.message_user(request, f'👁️ Marked {count} messages as read.')
+    mark_as_read.short_description = "Mark selected messages as read"
+    
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('stats/', self.admin_site.admin_view(self.youtube_messaging_stats), 
+                 name='crm_youtubemessage_stats'),
+            path('send-bulk/', self.admin_site.admin_view(self.send_bulk_message), 
+                 name='crm_youtubemessage_send_bulk'),
+        ]
+        return custom_urls + urls
+    
+    def youtube_messaging_stats(self, request):
+        from .youtube_service import youtube_service
+        
+        stats = youtube_service.get_message_statistics()
+        
+        # Get top performers
+        top_handles = YouTubeMessage.objects.values('target_youtube_handle').annotate(
+            message_count=models.Count('id'),
+            success_count=models.Count('id', filter=models.Q(status='sent'))
+        ).order_by('-message_count')[:10]
+        
+        context = {
+            'title': 'YouTube Messaging Statistics',
+            'stats': stats,
+            'top_handles': top_handles,
+            'opts': self.model._meta,
+            'has_view_permission': self.has_view_permission(request),
+        }
+        
+        return TemplateResponse(request, 'admin/crm/youtubemessage/stats.html', context)
+    
+    def send_bulk_message(self, request):
+        if request.method == 'POST':
+            from .youtube_service import youtube_service
+            
+            handles = request.POST.get('handles', '').strip()
+            subject = request.POST.get('subject', '').strip()
+            content = request.POST.get('content', '').strip()
+            message_type = request.POST.get('message_type', 'direct_message')
+            priority = int(request.POST.get('priority', 3))
+            
+            if not all([handles, subject, content]):
+                messages.error(request, 'All fields are required.')
+                return redirect('admin:crm_youtubemessage_send_bulk')
+            
+            handle_list = [h.strip() for h in handles.split('\n') if h.strip()]
+            sent_count = 0
+            failed_count = 0
+            
+            for handle in handle_list:
+                try:
+                    success, msg, youtube_message = youtube_service.send_message_to_handle(
+                        youtube_handle=handle,
+                        subject=subject,
+                        content=content,
+                        message_type=message_type,
+                        priority=priority
+                    )
+                    if success:
+                        sent_count += 1
+                    else:
+                        failed_count += 1
+                except Exception as e:
+                    failed_count += 1
+            
+            messages.success(
+                request, 
+                f'Bulk message sent: {sent_count} succeeded, {failed_count} failed.'
+            )
+            return redirect('admin:crm_youtubemessage_changelist')
+        
+        context = {
+            'title': 'Send Bulk YouTube Message',
+            'opts': self.model._meta,
+            'has_view_permission': self.has_view_permission(request),
+        }
+        
+        return TemplateResponse(request, 'admin/crm/youtubemessage/send_bulk.html', context)
