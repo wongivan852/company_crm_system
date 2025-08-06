@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Krystal Company Apps - Network Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status-card {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 5px solid #4CAF50;
+        }
+        .app-link {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+            text-decoration: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            margin: 10px;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .app-link:hover {
+            background: rgba(255, 255, 255, 0.5);
+            border-color: rgba(255, 255, 255, 0.8);
+            transform: translateY(-2px);
+        }
+        .network-info {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            font-family: monospace;
+            margin: 20px 0;
+        }
+        .success { color: #4CAF50; }
+        .info { color: #2196F3; }
+        .warning { color: #FF9800; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏢 Krystal Company Apps</h1>
+            <p>Network Connectivity Test Page</p>
+        </div>
+
+        <div class="status-card">
+            <h3>🎉 Connection Successful!</h3>
+            <p>If you can see this page, your device can successfully connect to the server.</p>
+        </div>
+
+        <div class="status-card">
+            <h3>🌐 Available Applications</h3>
+            <div style="text-align: center; margin: 20px 0;">
+                <a href="http://192.168.0.104:8082/" class="app-link">
+                    🏢 CRM System
+                </a>
+                <a href="http://192.168.0.104:8082/admin/" class="app-link">
+                    👤 Admin Panel
+                </a>
+                <a href="http://192.168.0.104:8082/network-test/" class="app-link">
+                    🧪 API Test
+                </a>
+            </div>
+        </div>
+
+        <div class="status-card">
+            <h3>📋 System Information</h3>
+            <div class="network-info">
+                <div><span class="success">✅</span> Server IP: 192.168.0.104</div>
+                <div><span class="success">✅</span> Port: 8082</div>
+                <div><span class="success">✅</span> Network: Krystal-414-b WiFi</div>
+                <div><span class="info">ℹ️</span> Status: Online</div>
+            </div>
+        </div>
+
+        <div class="status-card">
+            <h3>🔑 Login Information</h3>
+            <div class="network-info">
+                <div><span class="info">👤</span> Admin Username: admin</div>
+                <div><span class="info">🔒</span> Admin Password: admin123</div>
+            </div>
+        </div>
+
+        <div class="status-card">
+            <h3>🔍 Troubleshooting</h3>
+            <ul>
+                <li>If this page loads but other apps don't work, check their specific ports</li>
+                <li>If you can't reach this page, check router's client isolation settings</li>
+                <li>Try refreshing the page or clearing browser cache</li>
+                <li>Verify you're connected to the same WiFi network (Krystal-414-b)</li>
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px; opacity: 0.7;">
+            <p>📱 Accessible from any device on the WiFi network</p>
+            <p><small>Generated: <span id="timestamp"></span></small></p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('timestamp').textContent = new Date().toLocaleString();
+        
+        // Auto-refresh every 30 seconds to show it's live
+        setTimeout(() => {
+            document.querySelector('.header p').innerHTML = 
+                '✨ Live Connection - Auto-refreshed at ' + new Date().toLocaleTimeString();
+        }, 1000);
+    </script>
+</body>
+</html>
