@@ -1,0 +1,4 @@
+firstname,lastname,email,mobile,organization,type,lead_source,referred_by
+Mary,Wilson,mary.wilson@test.com,555-0005,Design Agency,individual,facebook,
+"Dr. James Michael Thompson Jr.",,"james.thompson@test.com",555-0006,Medical Center,corporate,conference,Medical Conference 2024
+Sarah,Davis,sarah.davis@test.com,555-0007,,student,word_of_mouth,Friend

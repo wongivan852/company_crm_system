@@ -1,0 +1,5 @@
+first_name,last_name,email,phone,company
+John,Smith,"john.work@company.com, john.personal@gmail.com",555-0001,ABC Corp
+Jane,Doe,"jane@work.com; jane.doe@personal.com; jane.backup@email.com",555-0002,XYZ Inc
+Bob,Johnson,"bob@company.com | bob.johnson@personal.com",555-0003,Tech Startup
+Alice,Brown,"alice@work.com & alice.brown@home.com",555-0004,Consulting Firm
