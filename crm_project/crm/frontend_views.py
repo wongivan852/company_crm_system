@@ -6,12 +6,12 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponse
+from django.core.exceptions import ValidationError
 from .models import Customer, Course, Enrollment, Conference
 from .forms import CustomerForm, EnrollmentForm
 from .communication_services import CommunicationManager
 from .tasks import send_welcome_message_task
 from .utils import generate_customer_csv_response
-from .csv_import_handler import CSVImportHandler
 
 logger = logging.getLogger(__name__)
 
@@ -51,9 +51,27 @@ def customer_create(request):
     if request.method == 'POST':
         form = CustomerForm(request.POST)
         if form.is_valid():
-            customer = form.save()
-            messages.success(request, f'Customer {customer.first_name} {customer.last_name} created successfully! You can now perform quick actions below.')
-            return redirect('crm:customer_detail', customer_id=customer.id)
+            try:
+                customer = form.save()
+                messages.success(request, f'Customer {customer.first_name} {customer.last_name} created successfully! You can now perform quick actions below.')
+                return redirect('crm:customer_detail', customer_id=customer.id)
+            except ValidationError as e:
+                # Handle model validation errors
+                if hasattr(e, 'message_dict'):
+                    for field, errors in e.message_dict.items():
+                        for error in errors:
+                            messages.error(request, f'{field}: {error}')
+                else:
+                    messages.error(request, f'Validation error: {str(e)}')
+            except Exception as e:
+                # Handle any other errors
+                messages.error(request, f'Error creating customer: {str(e)}')
+                logger.error(f"Customer creation error: {e}", exc_info=True)
+        else:
+            # Form validation errors
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
     else:
         form = CustomerForm()
     
@@ -69,46 +87,91 @@ def export_customers_csv(request):
     """Export customer data to CSV - SECURE LOGIN REQUIRED"""
     return generate_customer_csv_response()
 
-@login_required
-def import_customers_csv(request):
-    """Frontend view for CSV import with field mapping interface"""
-    context = {
-        'title': 'Import Customers from CSV',
-        'field_mappings': CSVImportHandler.FIELD_MAPPINGS,
-        'mandatory_fields': CSVImportHandler.MANDATORY_FIELDS,
-        'customer_types': [choice[0] for choice in Customer.CUSTOMER_TYPES]
-    }
-    return render(request, 'crm/import_csv.html', context)
+def test_youtube_form(request):
+    """Test form for YouTube data entry - NO LOGIN REQUIRED"""
+    if request.method == 'POST':
+        try:
+            # Debug: Show what we received
+            form_data = {
+                'first_name': request.POST.get('first_name', 'MISSING'),
+                'last_name': request.POST.get('last_name', 'MISSING'),
+                'email_primary': request.POST.get('email_primary', 'MISSING'),
+                'customer_type': request.POST.get('customer_type', 'MISSING'),
+                'status': request.POST.get('status', 'MISSING'),
+                'preferred_communication_method': request.POST.get('preferred_communication_method', 'MISSING'),
+                'youtube_handle': request.POST.get('youtube_handle', 'EMPTY')
+            }
+            
+            messages.info(request, f'📥 Received data: {form_data}')
+            
+            # Create customer with form data
+            customer = Customer(
+                first_name=form_data['first_name'],
+                last_name=form_data['last_name'],
+                email_primary=form_data['email_primary'],
+                customer_type=form_data['customer_type'],
+                status=form_data['status'],
+                preferred_communication_method=form_data['preferred_communication_method'],
+                youtube_handle=form_data['youtube_handle']
+            )
+            
+            # Validate and save
+            customer.full_clean()
+            customer.save()
+            
+            messages.success(request, f'✅ SUCCESS! Customer created with YouTube handle: @{customer.youtube_handle}')
+            messages.info(request, f'📹 Auto-generated URL: {customer.youtube_channel_url}')
+            
+        except Exception as e:
+            messages.error(request, f'❌ ERROR: {str(e)}')
+            import traceback
+            messages.error(request, f'🔍 Full error: {traceback.format_exc()}')
+    
+    return render(request, 'crm/test_youtube_form.html')
 
-@login_required
-def data_source_analytics(request):
-    """Analytics view for customer data sources"""
-    from django.db.models import Count
+def simple_youtube_test(request):
+    """Super simple YouTube test - NO HTML FORMS"""
+    if request.method == 'POST':
+        try:
+            # Get data from POST
+            youtube_handle = request.POST.get('youtube_handle', '').strip()
+            
+            # Debug info
+            messages.info(request, f'📥 Received YouTube handle: "{youtube_handle}"')
+            
+            if not youtube_handle:
+                messages.warning(request, '⚠️ YouTube handle is empty')
+                return render(request, 'crm/simple_youtube_test.html')
+            
+            # Create customer with minimal data
+            customer = Customer(
+                first_name='YouTube',
+                last_name='User',
+                email_primary=f'youtube_{youtube_handle}@test.com',
+                customer_type='individual',
+                status='prospect',
+                preferred_communication_method='email',
+                youtube_handle=youtube_handle
+            )
+            
+            # Save without validation first
+            customer.full_clean()
+            customer.save()
+            
+            messages.success(request, f'✅ SUCCESS! Created customer with YouTube handle: @{customer.youtube_handle}')
+            messages.info(request, f'📹 Auto-generated URL: {customer.youtube_channel_url}')
+            messages.info(request, f'👤 Customer ID: {customer.id}')
+            
+        except Exception as e:
+            messages.error(request, f'❌ ERROR: {str(e)}')
+            import traceback
+            messages.warning(request, f'🔍 Details: {traceback.format_exc()[:500]}')
     
-    # Get source distribution
-    source_stats = Customer.objects.values('source').annotate(
-        count=Count('id')
-    ).order_by('-count')
-    
-    # Get recent acquisitions by source
-    recent_customers = Customer.objects.select_related().order_by('-created_at')[:50]
-    
-    # Calculate percentages
-    total_customers = Customer.objects.count()
-    for stat in source_stats:
-        stat['percentage'] = round((stat['count'] / total_customers * 100), 1) if total_customers > 0 else 0
-        # Get display name for source
-        source_display = dict(Customer.SOURCE_CHOICES).get(stat['source'], stat['source'])
-        stat['source_display'] = source_display if source_display else 'Unknown'
-    
-    context = {
-        'title': 'Customer Data Source Analytics',
-        'source_stats': source_stats,
-        'recent_customers': recent_customers,
-        'total_customers': total_customers,
-        'page_title': 'Data Source Analytics - Secure Access',
-    }
-    return render(request, 'crm/data_source_analytics.html', context)
+    return render(request, 'crm/simple_youtube_test.html')
+
+def api_youtube_test(request):
+    """API-based YouTube test - no forms at all"""
+    return render(request, 'crm/api_youtube_test.html')
 
 @login_required
 @login_required

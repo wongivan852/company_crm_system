@@ -470,6 +470,18 @@ class Customer(models.Model):
     
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['email_primary']),
+            models.Index(fields=['customer_type', 'status']),
+            models.Index(fields=['country_region']),
+            models.Index(fields=['source']),
+            models.Index(fields=['marketing_consent']),
+            models.Index(fields=['phone_primary']),
+            models.Index(fields=['whatsapp_number']),
+            models.Index(fields=['youtube_handle']),
+            models.Index(fields=['created_at', 'status']),
+            models.Index(fields=['customer_type', 'created_at']),
+        ]
     
     def __str__(self):
         # Build name with title and designation if available
@@ -698,6 +710,14 @@ class Course(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
+    class Meta:
+        indexes = [
+            models.Index(fields=['course_type', 'is_active']),
+            models.Index(fields=['start_date']),
+            models.Index(fields=['registration_deadline']),
+            models.Index(fields=['is_active', 'start_date']),
+        ]
+    
     def __str__(self):
         return self.title
 
@@ -725,6 +745,12 @@ class Enrollment(models.Model):
     
     class Meta:
         unique_together = ['customer', 'course']
+        indexes = [
+            models.Index(fields=['customer', 'status']),
+            models.Index(fields=['course', 'status']),
+            models.Index(fields=['enrollment_date']),
+            models.Index(fields=['payment_status']),
+        ]
     
     def __str__(self):
         return f"{self.customer} - {self.course}"
@@ -742,6 +768,13 @@ class Conference(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
+    class Meta:
+        indexes = [
+            models.Index(fields=['is_active', 'start_date']),
+            models.Index(fields=['start_date']),
+            models.Index(fields=['created_at']),
+        ]
+    
     def __str__(self):
         return self.name
 
@@ -754,6 +787,11 @@ class ConferenceRegistration(models.Model):
     
     class Meta:
         unique_together = ['customer', 'conference']
+        indexes = [
+            models.Index(fields=['customer']),
+            models.Index(fields=['conference']),
+            models.Index(fields=['registration_date']),
+        ]
 
 class CommunicationLog(models.Model):
     CHANNEL_CHOICES = [
@@ -775,6 +813,14 @@ class CommunicationLog(models.Model):
     
     # External message IDs for tracking
     external_message_id = models.CharField(max_length=200, blank=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['customer', 'channel']),
+            models.Index(fields=['sent_at']),
+            models.Index(fields=['is_outbound']),
+            models.Index(fields=['channel', 'sent_at']),
+        ]
     
     def __str__(self):
         return f"{self.customer} - {self.channel} - {self.subject}"

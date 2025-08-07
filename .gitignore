@@ -87,3 +87,6 @@ local_settings.py
 # Secret keys and sensitive data
 secrets.json
 config.json
+# Server logs and temporary files
+server.log
+import_customers.py

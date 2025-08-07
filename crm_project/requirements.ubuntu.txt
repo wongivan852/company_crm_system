@@ -1,0 +1,63 @@
+# Ubuntu Server Production Requirements
+# Install these on your Ubuntu server for production deployment
+
+# Core Django dependencies
+Django==4.2.16
+djangorestframework==3.14.0
+django-filter==23.5
+django-cors-headers==4.3.1
+
+# Database - PostgreSQL for production
+psycopg2-binary==2.9.9
+
+# Task queue and caching
+celery==5.3.4
+redis==5.0.1
+django-redis==5.4.0
+
+# Configuration management
+python-decouple==3.8
+
+# HTTP requests
+requests==2.31.0
+
+# Image processing
+Pillow==10.4.0
+
+# Production server and deployment
+gunicorn==21.2.0
+whitenoise==6.6.0
+
+# System and process management
+supervisor  # For process management
+systemd-python  # For systemd integration
+
+# SSL/TLS and security
+cryptography>=41.0.7
+urllib3>=2.0.7
+certifi>=2023.7.22
+
+# Communication services (optional)
+sendgrid==6.11.0
+twilio==8.13.0
+python-telegram-bot==20.8
+
+# Development and testing tools (optional for staging)
+pytest==7.4.4
+pytest-django==4.8.0
+
+# CSV processing
+chardet==5.2.0
+
+# Performance monitoring (production)
+django-extensions==3.2.3  # For management commands
+
+# Additional Ubuntu-specific packages
+# Install via apt-get:
+# - postgresql postgresql-contrib
+# - redis-server
+# - nginx
+# - python3-pip python3-venv
+# - git curl wget
+# - supervisor
+# - certbot (for Let's Encrypt SSL)

@@ -32,23 +32,31 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
-# Security Settings for Production
+# Security Settings - Environment Aware
+SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=not DEBUG, cast=bool)
+SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=not DEBUG, cast=bool)
+CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=not DEBUG, cast=bool)
+
 if not DEBUG:
+    # Production security settings
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=31536000, cast=int)  # 1 year
-    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
     X_FRAME_OPTIONS = 'DENY'
     SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+    
+    # Additional production security headers
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    USE_TZ = True
 else:
-    # Development settings
-    SECURE_SSL_REDIRECT = False
-    SESSION_COOKIE_SECURE = False
-    CSRF_COOKIE_SECURE = False
+    # Development/Testing settings - more relaxed for local testing
+    X_FRAME_OPTIONS = 'SAMEORIGIN'  # Allow embedding for testing
+    
+    # Allow HTTP for local development
+    CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access for testing
+    SESSION_COOKIE_HTTPONLY = True
 
 # Learning Institute Information
 INSTITUTE_NAME = config('INSTITUTE_NAME', default='Learning Institute')
@@ -93,16 +101,32 @@ MIDDLEWARE = [
 
 # Add debug toolbar for development
 if DEBUG:
-    INSTALLED_APPS.append('debug_toolbar')
+    INSTALLED_APPS.extend(['debug_toolbar', 'django_extensions'])
     MIDDLEWARE.insert(1, 'debug_toolbar.middleware.DebugToolbarMiddleware')
     INTERNAL_IPS = ['127.0.0.1', 'localhost']
+    
+    # Debug toolbar configuration for performance monitoring
+    DEBUG_TOOLBAR_CONFIG = {
+        'SHOW_TEMPLATE_CONTEXT': True,
+        'SHOW_TOOLBAR_CALLBACK': lambda request: True,
+        'DISABLE_PANELS': {
+            'debug_toolbar.panels.redirects.RedirectsPanel',
+        },
+    }
+    
+    # Add django-extensions for profiling
+    SHELL_PLUS = "ipython"
+    RUNSERVER_PLUS_EXTRA_FILES = []
+else:
+    # Production optimizations
+    DEBUG_PROPAGATE_EXCEPTIONS = False
 
 ROOT_URLCONF = 'crm_project.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -129,6 +153,8 @@ DATABASES = {
         'PASSWORD': config('DB_PASSWORD', default=''),
         'HOST': config('DB_HOST', default='localhost'),
         'PORT': config('DB_PORT', default='5432'),
+        'CONN_MAX_AGE': config('DB_CONN_MAX_AGE', default=600, cast=int),  # Connection pooling
+        # Note: OPTIONS specific to PostgreSQL, removed for SQLite compatibility
     }
 }
 
@@ -175,13 +201,32 @@ STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
 
-# Static files storage for production
+# Static files storage for production - Enhanced for performance
 if not DEBUG:
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    # Enable aggressive caching for static files
+    WHITENOISE_MAX_AGE = 31536000  # 1 year
+    WHITENOISE_SKIP_COMPRESS_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'zip', 'gz', 'tgz', 'bz2', 'tbz', 'xz', 'br']
+    WHITENOISE_USE_FINDERS = True
+else:
+    # Development static files handling
+    STATICFILES_FINDERS = [
+        'django.contrib.staticfiles.finders.FileSystemFinder',
+        'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+    ]
 
-# Media files
+# Media files - Optimized for performance
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# File upload settings for performance
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2.5MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2.5MB
+FILE_UPLOAD_TEMP_DIR = BASE_DIR / 'tmp' / 'uploads'
+
+# Ensure temp directory exists
+import os
+os.makedirs(FILE_UPLOAD_TEMP_DIR, exist_ok=True)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -229,10 +274,47 @@ REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'crm.error_handlers.custom_exception_handler',
 }
 
-# CORS Configuration
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
+# CORS Configuration - Enhanced for multi-device testing
+CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=False, cast=bool)
+CORS_ALLOW_CREDENTIALS = config('CORS_ALLOW_CREDENTIALS', default=False, cast=bool)
+
+if not CORS_ALLOW_ALL_ORIGINS:
+    CORS_ALLOWED_ORIGINS = config(
+        'CORS_ALLOWED_ORIGINS', 
+        default='http://localhost:3000,http://127.0.0.1:3000',
+        cast=lambda v: [s.strip() for s in v.split(',')]
+    )
+else:
+    # For development/testing only - allows all origins
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://192.168.0.164:3000",
+        "http://192.168.0.164:8000",
+        "http://10.5.0.2:3000",
+        "http://10.5.0.2:8000",
+    ]
+
+# Additional CORS settings for API access
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
 ]
 
 # Email Configuration
@@ -257,12 +339,15 @@ CACHES = {
     }
 }
 
-# Cache time to live settings
+# Cache time to live settings - Enhanced for UAT
 CACHE_TTL = {
-    'customer_list': 60 * 5,  # 5 minutes
-    'course_list': 60 * 15,   # 15 minutes
+    'customer_list': 60 * 2,  # 2 minutes (faster updates for UAT)
+    'customer_search': 60 * 5,  # 5 minutes
+    'course_list': 60 * 10,   # 10 minutes (reduced for UAT)
     'country_codes': 60 * 60 * 24,  # 24 hours
-    'dashboard_stats': 60 * 10,  # 10 minutes
+    'dashboard_stats': 60 * 5,  # 5 minutes (faster updates for UAT)
+    'api_responses': 60 * 3,  # 3 minutes for API caching
+    'query_cache': 60 * 1,    # 1 minute for query results
 }
 
 # Celery Configuration
@@ -283,6 +368,14 @@ WECHAT_CORP_SECRET = config('WECHAT_CORP_SECRET', default='')
 WECHAT_AGENT_ID = config('WECHAT_AGENT_ID', default='')
 
 # Logging Configuration
+# Performance monitoring settings
+if DEBUG:
+    # SQL query logging for development
+    LOGGING_LEVEL = 'DEBUG'
+else:
+    # Reduced logging for production performance
+    LOGGING_LEVEL = 'INFO'
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -297,6 +390,10 @@ LOGGING = {
         },
         'json': {
             'format': '%(levelname)s %(asctime)s %(module)s %(message)s',
+        },
+        'performance': {
+            'format': 'PERF {asctime} {module} {funcName} {lineno} {message}',
+            'style': '{',
         },
     },
     'handlers': {
@@ -329,10 +426,28 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
         },
+        'performance_file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': BASE_DIR / 'logs' / 'performance.log',
+            'formatter': 'performance',
+            'maxBytes': 5242880,  # 5MB
+            'backupCount': 3,
+        },
     },
     'loggers': {
         'crm': {
             'handlers': ['file', 'error_file', 'console'],
+            'level': LOGGING_LEVEL,
+            'propagate': False,
+        },
+        'crm.performance': {
+            'handlers': ['performance_file', 'console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'crm.cache': {
+            'handlers': ['file', 'console'],
             'level': 'INFO',
             'propagate': False,
         },
@@ -354,6 +469,11 @@ LOGGING = {
         'django.request': {
             'handlers': ['error_file'],
             'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['performance_file'] if DEBUG else [],
+            'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': False,
         },
     },

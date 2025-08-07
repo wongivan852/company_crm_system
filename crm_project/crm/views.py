@@ -13,6 +13,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
+from .cache_utils import cache_result, cache_queryset_result, CacheManager
 import csv
 import datetime
 from .models import Customer, Course, Enrollment, Conference, ConferenceRegistration, CommunicationLog
@@ -34,11 +35,23 @@ class CustomerViewSet(viewsets.ModelViewSet):
     ordering_fields = ['created_at', 'last_name', 'first_name']
     ordering = ['-created_at']
     
+    @cache_queryset_result(timeout=300, key_prefix='customer_viewset')
     def get_queryset(self):
-        """Optimized queryset with prefetch for related data"""
+        """Optimized queryset with prefetch for related data and caching"""
         return Customer.objects.select_related().prefetch_related(
             Prefetch('enrollment_set', queryset=Enrollment.objects.select_related('course')),
-            'communicationlog_set'
+            Prefetch('communicationlog_set', queryset=CommunicationLog.objects.select_related()),
+            Prefetch('youtube_messages', queryset=self._get_youtube_messages_queryset())
+        ).only(
+            'id', 'first_name', 'last_name', 'email_primary', 'customer_type', 
+            'status', 'phone_primary', 'country_region', 'created_at', 'source'
+        )
+    
+    def _get_youtube_messages_queryset(self):
+        """Optimized YouTube messages queryset"""
+        from .models import YouTubeMessage
+        return YouTubeMessage.objects.select_related().only(
+            'id', 'customer_id', 'status', 'subject', 'sent_at'
         )
     
     @action(detail=True, methods=['post'])
@@ -60,31 +73,26 @@ class CustomerViewSet(viewsets.ModelViewSet):
         })
     
     @action(detail=False, methods=['get'])
+    @cache_result(timeout=300, key_prefix='customer_search')
     def search_by_contact(self, request):
-        """Search customers by email, phone, or WhatsApp with caching"""
+        """Search customers by email, phone, or WhatsApp with enhanced caching"""
         contact = request.query_params.get('contact', '')
         if not contact:
             return Response({'error': 'Contact parameter required'}, status=400)
         
-        # Create cache key for this search
-        cache_key = f"customer_search_{contact}"
-        cached_result = cache.get(cache_key)
-        
-        if cached_result is not None:
-            return Response(cached_result)
-        
+        # Optimized query with indexes
         customers = Customer.objects.filter(
-            Q(email_primary__icontains=contact) |
+            Q(email_primary__iexact=contact) |  # Exact match first (faster)
             Q(phone_primary__icontains=contact) |
-            Q(whatsapp_number__icontains=contact)
-        ).select_related()
+            Q(whatsapp_number__icontains=contact) |
+            Q(email_primary__icontains=contact)  # Partial match last
+        ).select_related().only(
+            'id', 'first_name', 'last_name', 'email_primary', 
+            'phone_primary', 'whatsapp_number', 'customer_type', 'status'
+        )[:20]  # Limit results for performance
         
         serializer = self.get_serializer(customers, many=True)
-        result_data = serializer.data
-        
-        # Cache for 5 minutes
-        cache.set(cache_key, result_data, settings.CACHE_TTL['customer_list'])
-        return Response(result_data)
+        return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
     @throttle_classes([UserRateThrottle])
@@ -173,10 +181,16 @@ class CourseViewSet(viewsets.ModelViewSet):
     filterset_fields = ['course_type', 'is_active']
     search_fields = ['title', 'description']
     
+    @cache_queryset_result(timeout=600, key_prefix='course_viewset')
     def get_queryset(self):
-        """Optimized queryset with prefetch for enrollments"""
+        """Optimized queryset with prefetch for enrollments and caching"""
         return Course.objects.prefetch_related(
-            Prefetch('enrollment_set', queryset=Enrollment.objects.select_related('customer'))
+            Prefetch('enrollment_set', queryset=Enrollment.objects.select_related('customer').only(
+                'id', 'customer_id', 'course_id', 'status', 'enrollment_date'
+            ))
+        ).only(
+            'id', 'title', 'course_type', 'is_active', 'start_date', 
+            'end_date', 'price', 'max_participants'
         )
     
     @method_decorator(cache_page(settings.CACHE_TTL['course_list']))
@@ -234,13 +248,28 @@ def export_customers_csv(request):
     return generate_customer_csv_response()
 
 
+@cache_result(timeout=300, key_prefix='dashboard')
 def test_dashboard(request):
-    """Simple dashboard for testing (no security)"""
+    """Simple dashboard for testing with caching (no security)"""
     from .models import Course, Enrollment
+    
+    # Use cached stats where possible
+    total_customers = cache.get('customer_stats_total')
+    if total_customers is None:
+        total_customers = Customer.objects.count()
+        cache.set('customer_stats_total', total_customers, settings.CACHE_TTL['dashboard_stats'])
+    
+    active_customers = cache.get('customer_stats_active')
+    if active_customers is None:
+        active_customers = Customer.objects.filter(status='active').count()
+        cache.set('customer_stats_active', active_customers, settings.CACHE_TTL['dashboard_stats'])
+    
     context = {
-        'total_customers': Customer.objects.count(),
-        'active_customers': Customer.objects.filter(status='active').count(),
-        'recent_customers': Customer.objects.order_by('-created_at')[:5],
+        'total_customers': total_customers,
+        'active_customers': active_customers,
+        'recent_customers': Customer.objects.select_related().only(
+            'id', 'first_name', 'last_name', 'email_primary', 'created_at'
+        ).order_by('-created_at')[:5],
         'total_courses': Course.objects.filter(is_active=True).count() if hasattr(Course, 'objects') else 0,
         'total_enrollments': Enrollment.objects.count() if hasattr(Enrollment, 'objects') else 0,
     }

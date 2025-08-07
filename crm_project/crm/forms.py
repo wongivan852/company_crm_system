@@ -27,16 +27,14 @@ class CustomerForm(forms.ModelForm):
             'company_website',
             
             # Social media
-            'linkedin_profile', 'facebook_profile', 'twitter_handle', 'instagram_handle',
+            'linkedin_profile', 'facebook_profile', 'twitter_handle', 'instagram_handle', 
+            'youtube_handle', 'youtube_channel_url',
             
             # Communication preferences
             'preferred_communication_method',
             
             # CRM fields
-            'customer_type', 'status', 'preferred_learning_format', 'interests',
-            
-            # Data source tracking
-            'source', 'referral_source'
+            'customer_type', 'status', 'preferred_learning_format', 'interests'
         ]
         widgets = {
             'first_name': forms.TextInput(attrs={
@@ -160,6 +158,14 @@ class CustomerForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Enter Instagram handle (without @)'
             }),
+            'youtube_handle': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter YouTube handle (without @)'
+            }),
+            'youtube_channel_url': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://youtube.com/@username or https://youtube.com/channel/ID'
+            }),
             'preferred_learning_format': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'e.g., Online, In-person, Hybrid'
@@ -172,14 +178,6 @@ class CustomerForm(forms.ModelForm):
             'preferred_communication_method': forms.Select(attrs={
                 'class': 'form-select'
             }),
-            'source': forms.Select(attrs={
-                'class': 'form-select',
-                'placeholder': 'How did they find us?'
-            }),
-            'referral_source': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Who referred them? (if applicable)'
-            }),
         }
         
         help_texts = {
@@ -187,8 +185,8 @@ class CustomerForm(forms.ModelForm):
             'facebook_profile': 'Enter your Facebook username (e.g., greengoldtv) or full URL. The full URL will be added automatically.',
             'twitter_handle': 'Enter your Twitter/X handle without the @ symbol.',
             'instagram_handle': 'Enter your Instagram handle without the @ symbol.',
-            'source': 'How did this customer find us? This helps track marketing effectiveness.',
-            'referral_source': 'If referred, specify who referred them (person, company, or source).',
+            'youtube_handle': 'Enter your YouTube handle without the @ symbol. Must be 3-30 characters, letters, numbers, dots, hyphens, and underscores only.',
+            'youtube_channel_url': 'Full YouTube channel URL (e.g., https://youtube.com/@username). Will be auto-generated if you provide just the handle.',
         }
 
 

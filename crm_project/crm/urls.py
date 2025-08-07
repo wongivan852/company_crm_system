@@ -20,8 +20,6 @@ urlpatterns = [
     path('customers/', frontend_views.customer_list, name='customer_list'),
     path('customers/create/', frontend_views.customer_create, name='customer_create'),
     path('customers/export/csv/', frontend_views.export_customers_csv, name='export_customers_csv'),
-    path('customers/import/csv/', frontend_views.import_customers_csv, name='import_customers_csv'),
-    path('analytics/data-sources/', frontend_views.data_source_analytics, name='data_source_analytics'),
     
     # Protected Frontend Routes (require login)
     path('secure/', frontend_views.dashboard, name='secure_dashboard'),
@@ -40,6 +38,9 @@ urlpatterns = [
     path('test/customers/create/', views.test_customer_create, name='test_customer_create'),
     path('test/customers/export/csv/', views.test_export_csv, name='test_export_csv'),
     path('test/country-code/', frontend_views.test_country_code_form, name='test_country_code_form'),
+    path('test/youtube/', frontend_views.test_youtube_form, name='test_youtube_form'),
+    path('test/simple-youtube/', frontend_views.simple_youtube_test, name='simple_youtube_test'),
+    path('test/api-youtube/', frontend_views.api_youtube_test, name='api_youtube_test'),
     
     # API Routes
     path('api/v1/', include(router.urls)),

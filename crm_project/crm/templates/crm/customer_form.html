@@ -614,7 +614,7 @@ function setupSocialMediaUrlFormatting() {
                 <h5><i class="fas fa-user"></i> Customer Information</h5>
             </div>
             <div class="card-body">
-                <form method="post">
+                <form method="post" novalidate>
                     {% csrf_token %}
                     
                     <!-- Basic Name Information -->
@@ -939,6 +939,20 @@ function setupSocialMediaUrlFormatting() {
                                     </div>
                                     <div class="row mb-3">
                                         <div class="col-md-12">
+                                            <label for="{{ form.youtube_handle.id_for_label }}" class="form-label">YouTube Handle</label>
+                                            {{ form.youtube_handle }}
+                                            {% if form.youtube_handle.errors %}
+                                                <div class="text-danger">{{ form.youtube_handle.errors }}</div>
+                                            {% endif %}
+                                            <div class="form-text">
+                                                <i class="fas fa-info-circle text-primary"></i> 
+                                                Just enter the @handle (e.g., <code>@robbybranham</code> or <code>robbybranham</code>)
+                                                <br><small class="text-muted">Channel URL will be auto-generated</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-md-12">
                                             <label for="{{ form.interests.id_for_label }}" class="form-label">Learning Interests</label>
                                             {{ form.interests }}
                                             {% if form.interests.errors %}
@@ -953,10 +967,52 @@ function setupSocialMediaUrlFormatting() {
                     
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                         <a href="{% url 'crm:customer_list' %}" class="btn btn-secondary me-md-2">Cancel</a>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" onclick="debugFormSubmit(event)">
                             <i class="fas fa-save"></i> Save Customer
                         </button>
                     </div>
+
+<script>
+function debugFormSubmit(event) {
+    console.log('🚀 Form submission started');
+    
+    // Check all required fields
+    const requiredFields = [
+        'first_name', 'last_name', 'email_primary', 
+        'customer_type', 'status', 'preferred_communication_method'
+    ];
+    
+    let allValid = true;
+    requiredFields.forEach(fieldName => {
+        const field = document.getElementById(`id_${fieldName}`);
+        if (field) {
+            const isEmpty = !field.value || field.value.trim() === '';
+            console.log(`📝 ${fieldName}: "${field.value}" (Empty: ${isEmpty})`);
+            if (isEmpty) {
+                console.log(`❌ Missing required field: ${fieldName}`);
+                allValid = false;
+            }
+        } else {
+            console.log(`❌ Field not found: ${fieldName}`);
+        }
+    });
+    
+    // Check YouTube field
+    const youtubeField = document.getElementById('id_youtube_handle');
+    if (youtubeField && youtubeField.value) {
+        console.log(`📹 YouTube handle: "${youtubeField.value}"`);
+    }
+    
+    if (!allValid) {
+        console.log('❌ Form has missing required fields - browser will focus first invalid field');
+    } else {
+        console.log('✅ All required fields filled');
+    }
+    
+    // Let the form submit naturally
+    return true;
+}
+</script>
                 </form>
             </div>
         </div>
