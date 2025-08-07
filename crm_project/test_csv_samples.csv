@@ -1,5 +1,0 @@
-first_name,last_name,email_primary,phone_primary,company_primary,customer_type,source,referral_source
-John,Smith,john.smith@test.com,+1-555-0001,ABC Corporation,individual,website,
-Jane,Doe,jane.doe@test.com,+1-555-0002,XYZ Company,corporate,google_search,
-Bob,Johnson,bob.johnson@test.com,+1-555-0003,Tech Startup,student,referral,Jane Doe
-Alice,Brown,alice.brown@test.com,+1-555-0004,Consulting Firm,instructor,linkedin,

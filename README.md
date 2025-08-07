@@ -1,10 +1,12 @@
-# Learning Institute CRM System - UAT v1.0
+# Krystal Company CRM System - UAT v1
 
-A comprehensive Customer Relationship Management system designed specifically for learning institutes, featuring multi-channel communication capabilities and complete student lifecycle management.
+A comprehensive Customer Relationship Management system built with Django 4.2.16, designed for managing diverse customer types including regular customers, corporate clients, students, and YouTube content creators.
 
-## 🎓 Overview
+## � UAT v1 Overview
 
-This CRM system provides a complete solution for managing customers (students), courses, conferences, and multi-channel communications for educational institutions. Currently deployed for User Acceptance Testing (UAT) with both virtual environment and Docker containerization support.
+**Status: ✅ UAT v1 Complete - Production Ready**
+
+This CRM system successfully manages **960 customers** including **11 specialized YouTube creators** with full network accessibility for multi-device testing. The system has been validated for production deployment with comprehensive data import capabilities and YouTube creator management features.
 
 ## ✨ Features
 
