@@ -1,10 +1,10 @@
-# Learning Institute CRM System
+# Learning Institute CRM System - UAT v1.0
 
 A comprehensive Customer Relationship Management system designed specifically for learning institutes, featuring multi-channel communication capabilities and complete student lifecycle management.
 
 ## 🎓 Overview
 
-This CRM system provides a complete solution for managing customers (students), courses, conferences, and multi-channel communications for educational institutions.
+This CRM system provides a complete solution for managing customers (students), courses, conferences, and multi-channel communications for educational institutions. Currently deployed for User Acceptance Testing (UAT) with both virtual environment and Docker containerization support.
 
 ## ✨ Features
 
@@ -36,7 +36,52 @@ This CRM system provides a complete solution for managing customers (students), 
 - **Task Queue**: Celery + Redis
 - **Communication**: WhatsApp, Email, WeChat APIs
 
-## 📦 Installation
+## 📦 Installation & Deployment
+
+### 🚀 Quick Start (UAT Environment)
+
+**Current UAT Deployment is LIVE at:**
+- **🏢 Main Application**: `http://192.168.0.104:8082/`
+- **👤 Admin Panel**: `http://192.168.0.104:8082/admin/`
+- **🧪 Network Test**: `http://192.168.0.104:8082/network-test/`
+- **🎨 Landing Page**: `http://192.168.0.104:8082/network-landing/`
+
+**Admin Credentials:**
+- Username: `admin`
+- Password: `admin123`
+
+### 🐍 Development Environment (Current Setup)
+
+**Virtual Environment Configuration:**
+```bash
+# Using existing virtual environment
+source /home/user/krystal-company-apps/claude-env/bin/activate
+
+# Start development server
+cd crm_project
+python manage.py runserver 0.0.0.0:8082
+```
+
+**Environment Details:**
+- Python: 3.12.3
+- Virtual Environment: `/home/user/krystal-company-apps/claude-env/`
+- Database: SQLite (development)
+- Network: Accessible from WiFi devices (192.168.0.104:8082)
+
+### 🐳 Docker Production Environment
+
+**Full containerized stack available:**
+```bash
+# Start all services
+docker-compose up -d
+
+# Services included:
+# - PostgreSQL database (port 5432)
+# - Redis cache (port 6379)
+# - Django application (port 8000)
+# - Celery workers
+# - Celery beat scheduler
+```
 
 ### Prerequisites
 - Python 3.8+
@@ -45,56 +90,87 @@ This CRM system provides a complete solution for managing customers (students), 
 
 ### Setup
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd company_crm_system
-   ```
+#### Option 1: Use Existing Environment (Recommended for UAT)
+```bash
+# Clone and navigate
+git clone <repository-url>
+cd company_crm_system
 
-2. **Create virtual environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+# Use existing virtual environment
+source /home/user/krystal-company-apps/claude-env/bin/activate
 
-3. **Install dependencies**
-   ```bash
-   pip install django djangorestframework django-filter django-cors-headers
-   pip install psycopg2-binary celery redis python-decouple
-   ```
+# Apply migrations (if needed)
+cd crm_project
+python manage.py migrate
 
-4. **Configure database**
-   - Create PostgreSQL database: `crm_db`
-   - Update database settings in `settings.py`
+# Start server
+python manage.py runserver 0.0.0.0:8082
+```
 
-5. **Run migrations**
-   ```bash
-   cd crm_project
-   python manage.py makemigrations
-   python manage.py migrate
-   ```
+#### Option 2: Fresh Installation
+#### Option 2: Fresh Installation
+```bash
+# 1. Clone the repository
+git clone <repository-url>
+cd company_crm_system
 
-6. **Create superuser**
-   ```bash
-   python manage.py createsuperuser
-   ```
+# 2. Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-7. **Load sample data**
-   ```bash
-   python manage.py load_sample_data
-   ```
+# 3. Install dependencies
+pip install -r requirements.txt
 
-8. **Start development server**
-   ```bash
-   python manage.py runserver
-   ```
+# 4. Setup database and run migrations
+cd crm_project
+python manage.py migrate
+
+# 5. Create superuser
+python manage.py createsuperuser
+
+# 6. Start development server
+python manage.py runserver 0.0.0.0:8082
+```
+
+#### Option 3: Docker Deployment
+```bash
+# Build and start all services
+docker-compose up -d
+
+# Check status
+docker-compose ps
+
+# View logs
+docker-compose logs -f web
+```
+
+## 🌐 UAT Access Information
+
+### Network Configuration
+- **Server IP**: 192.168.0.104
+- **WiFi Network**: Krystal-414-b
+- **Port**: 8082
+- **Firewall**: Configured for external device access
+- **Protocol**: HTTP (development mode)
+
+### Testing Endpoints
+- **Health Check**: GET `/network-test/` - Returns JSON status
+- **Landing Page**: GET `/network-landing/` - Interactive test page
+- **Admin Login**: POST `/admin/` - Django admin interface
+- **API Root**: GET `/api/` - REST API endpoints
 
 ## 🌐 Usage
 
-### Web Interface
-- **Dashboard**: http://127.0.0.1:8000/
-- **Admin Panel**: http://127.0.0.1:8000/admin/
-- **API Root**: http://127.0.0.1:8000/api/
+### UAT Environment Access
+- **Dashboard**: http://192.168.0.104:8082/
+- **Admin Panel**: http://192.168.0.104:8082/admin/
+- **API Root**: http://192.168.0.104:8082/api/
+- **Network Test**: http://192.168.0.104:8082/network-test/
+
+### Local Development
+- **Dashboard**: http://127.0.0.1:8082/
+- **Admin Panel**: http://127.0.0.1:8082/admin/
+- **API Root**: http://127.0.0.1:8082/api/
 
 ### API Endpoints
 
@@ -232,6 +308,44 @@ For support and questions:
 - Email: info@learninginstitute.com
 - Phone: +1234567890
 
+## 🚀 UAT Deployment Status
+
+### Environment Information
+- **Version**: UAT v1.0
+- **Deployment Date**: August 6, 2025
+- **Environment Type**: Development with Network Access
+- **Database**: SQLite (264KB)
+- **Server**: Django Development Server
+- **Network**: WiFi accessible (192.168.0.104:8082)
+
+### Architecture
+```
+UAT Environment:
+┌─────────────────────────────────────────┐
+│ Host System (192.168.0.104)            │
+│ ┌─────────────────────────────────────┐ │
+│ │ Virtual Environment (claude-env)    │ │
+│ │ ├─ Python 3.12.3                   │ │
+│ │ ├─ Django 4.2.16                   │ │
+│ │ ├─ SQLite Database                 │ │
+│ │ └─ Development Server :8082        │ │
+│ └─────────────────────────────────────┘ │
+│                                         │
+│ Docker (Available):                     │
+│ ├─ PostgreSQL Container                 │
+│ ├─ Redis Container                      │
+│ ├─ Django Container :8000              │
+│ ├─ Celery Worker                       │
+│ └─ Celery Beat Scheduler               │
+└─────────────────────────────────────────┘
+```
+
+### Network Configuration
+- **Firewall**: Configured for ICMP ping and port 8082
+- **Binding**: 0.0.0.0:8082 (accepts external connections)
+- **Gateway**: 192.168.0.1 (accessible)
+- **WiFi**: Krystal-414-b network
+
 ## 🚀 Deployment
 
 For production deployment:
@@ -244,4 +358,19 @@ For production deployment:
 
 ---
 
-**Built with ❤️ for Learning Institutes**
+## 📝 Version History
+
+### UAT v1.0 (August 6, 2025)
+- ✅ Complete CRM system setup with virtual environment
+- ✅ Network accessibility configured (192.168.0.104:8082)
+- ✅ Admin panel with fresh database (admin/admin123)
+- ✅ Docker containerization support available
+- ✅ Multi-device WiFi access enabled
+- ✅ Network diagnostic tools implemented
+- ✅ Landing page for connectivity testing
+- ✅ RESTful API endpoints functional
+- 🔧 Environment: Python 3.12.3 + Django 4.2.16
+- 🔧 Database: SQLite (development), PostgreSQL (production ready)
+- 🔧 Deployment: Virtual environment (active), Docker (available)
+
+**Built with ❤️ for Learning Institutes - UAT Ready!**
