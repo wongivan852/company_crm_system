@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Social Media URL Formatting</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .form-group { margin: 20px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="url"] { 
+            width: 400px; 
+            padding: 8px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        .test-section { 
+            border: 1px solid #ddd; 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 5px;
+        }
+        .instructions {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="instructions">
+        <h2>Test Social Media URL Auto-Formatting</h2>
+        <p><strong>Instructions:</strong></p>
+        <ul>
+            <li>Try entering "@greengoldtv" in the Facebook field and click outside</li>
+            <li>Try entering "john-doe" in the LinkedIn field and click outside</li>
+            <li>The fields should automatically format to full URLs</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h3>Facebook Profile Test</h3>
+        <div class="form-group">
+            <label for="id_facebook_profile">Facebook Profile:</label>
+            <input type="url" id="id_facebook_profile" class="form-control" placeholder="https://www.facebook.com/username">
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>LinkedIn Profile Test</h3>
+        <div class="form-group">
+            <label for="id_linkedin_profile">LinkedIn Profile:</label>
+            <input type="url" id="id_linkedin_profile" class="form-control" placeholder="https://www.linkedin.com/in/username">
+        </div>
+    </div>
+
+    <script>
+        // Setup URL auto-formatting for social media profile fields
+        function setupSocialMediaUrlFormatting() {
+            // LinkedIn Profile Auto-formatting
+            const linkedinField = document.getElementById('id_linkedin_profile');
+            if (linkedinField) {
+                console.log('🔗 Setting up LinkedIn URL auto-formatting');
+                
+                linkedinField.addEventListener('blur', function() {
+                    let value = this.value.trim();
+                    if (value && !value.match(/^https?:\/\//i)) {
+                        // Remove @ if present
+                        value = value.replace(/^@/, '');
+                        
+                        // Check if it looks like a LinkedIn username
+                        if (value && !value.includes('/')) {
+                            this.value = 'https://www.linkedin.com/in/' + value;
+                            console.log('🔗 Auto-formatted LinkedIn URL to', this.value);
+                            
+                            // Add visual feedback
+                            this.style.backgroundColor = '#d4edda';
+                            setTimeout(() => {
+                                this.style.backgroundColor = '';
+                            }, 1500);
+                        }
+                    }
+                });
+                
+                linkedinField.addEventListener('focus', function() {
+                    if (!this.value) {
+                        this.placeholder = 'Example: john-doe or @john-doe (full URL will be added automatically)';
+                    }
+                });
+                
+                linkedinField.addEventListener('blur', function() {
+                    this.placeholder = 'https://www.linkedin.com/in/username';
+                });
+            }
+            
+            // Facebook Profile Auto-formatting
+            const facebookField = document.getElementById('id_facebook_profile');
+            if (facebookField) {
+                console.log('📘 Setting up Facebook URL auto-formatting');
+                
+                facebookField.addEventListener('blur', function() {
+                    let value = this.value.trim();
+                    if (value && !value.match(/^https?:\/\//i)) {
+                        // Remove @ if present
+                        value = value.replace(/^@/, '');
+                        
+                        // Check if it looks like a Facebook username
+                        if (value && !value.includes('/')) {
+                            this.value = 'https://www.facebook.com/' + value;
+                            console.log('📘 Auto-formatted Facebook URL to', this.value);
+                            
+                            // Add visual feedback
+                            this.style.backgroundColor = '#d4edda';
+                            setTimeout(() => {
+                                this.style.backgroundColor = '';
+                            }, 1500);
+                        }
+                    }
+                });
+                
+                facebookField.addEventListener('focus', function() {
+                    if (!this.value) {
+                        this.placeholder = 'Example: greengoldtv or @greengoldtv (full URL will be added automatically)';
+                    }
+                });
+                
+                facebookField.addEventListener('blur', function() {
+                    this.placeholder = 'https://www.facebook.com/username';
+                });
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            setupSocialMediaUrlFormatting();
+        });
+    </script>
+</body>
+</html>
