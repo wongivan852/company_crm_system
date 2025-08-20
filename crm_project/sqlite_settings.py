@@ -11,12 +11,12 @@ DATABASES = {
     }
 }
 
-# Development settings
+# Development settings with Internet Access
 DEBUG = True
 SECRET_KEY = 'sqlite-dev-key-not-for-production'
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['*']  # Allow all hosts for internet access
 
-# Disable HTTPS redirects
+# Disable HTTPS redirects for development
 SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
@@ -25,4 +25,18 @@ CSRF_COOKIE_SECURE = False
 STATIC_URL = '/static/'
 STATIC_ROOT = 'staticfiles'
 
-print("✅ Using SQLite database settings")
+# CORS settings for API access from internet
+if 'corsheaders' in [app for app in INSTALLED_APPS if 'corsheaders' in app]:
+    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ALLOW_CREDENTIALS = True
+
+# Security headers for internet access
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
+# Network configuration
+USE_TZ = True
+TIME_ZONE = 'UTC'
+
+print("✅ Configured for internet access")
