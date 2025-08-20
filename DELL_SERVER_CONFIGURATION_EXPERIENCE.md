@@ -33,6 +33,8 @@ Deploy the Company CRM System with YouTube CSV integration on Dell server infras
 - **GitHub**: `https://github.com/wongivan852/company_crm_system`
 - **Branch**: `main`
 - **Integration Point**: Original repository with YouTube CSV enhancement
+- **External IP**: `203.186.246.162`
+- **Access Port**: `8082`
 
 ---
 
@@ -357,6 +359,42 @@ The Company CRM System has been successfully deployed on Dell server infrastruct
 - **Enhanced Outreach**: YouTube creator database for content partnerships
 - **Operational Efficiency**: Automated import and management processes
 - **Growth Ready**: Scalable architecture for business expansion
+
+---
+
+## 🔥 Firewall Configuration
+
+### **Internet Access Challenge**
+**Problem**: CRM server running on port 8082 but not accessible from external IP `203.186.246.162:8082`
+**Root Cause**: UFW (Uncomplicated Firewall) blocking incoming connections on port 8082
+
+### **Firewall Solution**
+```bash
+# Commands to enable internet access
+sudo ufw status                              # Check current status
+sudo ufw allow 8082/tcp comment 'CRM System Access'  # Open port 8082
+sudo ufw allow ssh                           # Ensure SSH access maintained
+sudo ufw reload                              # Apply changes
+sudo ufw status                              # Verify configuration
+```
+
+### **Network Verification**
+```bash
+# Verify server binding
+netstat -an | grep :8082                     # Should show 0.0.0.0:8082 LISTEN
+
+# Test external connectivity  
+nc -zv 203.186.246.162 8082                 # Test port accessibility
+
+# Check from external machine
+curl -I http://203.186.246.162:8082/        # Should return HTTP response
+```
+
+### **Security Considerations**
+- **Port 8082**: Opened specifically for CRM access
+- **SSH Maintained**: Administrative access preserved
+- **Minimal Exposure**: Only required port opened
+- **Monitoring**: Consider adding fail2ban for additional protection
 
 ---
 
