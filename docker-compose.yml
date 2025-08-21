@@ -10,13 +10,13 @@ services:
       POSTGRES_USER: crm_user
       POSTGRES_PASSWORD: crm_password123
     ports:
-      - "5432:5432"
+      - "5433:5432"
     restart: unless-stopped
 
   redis:
     image: redis:6-alpine
     ports:
-      - "6379:6379"
+      - "6380:6379"
     restart: unless-stopped
 
   web:
@@ -24,7 +24,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8083:8083"
+      - "0.0.0.0:8083:8083"
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
@@ -40,7 +40,7 @@ services:
       - DB_HOST=db
       - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/0
-      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,*
       - PORT=8083
     depends_on:
       - db

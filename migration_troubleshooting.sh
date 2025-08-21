@@ -18,7 +18,7 @@ NC='\033[0m' # No Color
 DB_NAME="crm_db"
 DB_USER="crm_user"
 DB_PASSWORD="5514"
-DJANGO_DIR="/home/ubuntu/company_crm_system/crm_project"
+DJANGO_DIR="/home/user/krystal-company-apps/company_crm_system/crm_project"
 
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -120,7 +120,7 @@ update_django_config() {
     log_info "Updating Django configuration..."
     
     # Update .env file
-    ENV_FILE="$DJANGO_DIR/.env"
+    ENV_FILE="/home/user/krystal-company-apps/company_crm_system/.env"
     
     if [ -f "$ENV_FILE" ]; then
         log_info "Updating $ENV_FILE..."
@@ -149,36 +149,17 @@ run_migrations() {
     log_info "Running Django migrations..."
     
     cd "$DJANGO_DIR" || exit 1
-    
-    # Activate virtual environment if exists
-    if [ -d "venv" ]; then
-        source venv/bin/activate
-    fi
-    
-    # Clear migration history
-    log_info "Clearing migration history..."
-    find . -path "*/migrations/*.py" -not -name "__init__.py" -delete
-    find . -path "*/migrations/*.pyc" -delete
-    
-    # Create fresh migrations
-    log_info "Creating fresh migrations..."
-    python manage.py makemigrations
-    
-    # Apply migrations
-    log_info "Applying migrations..."
-    python manage.py migrate
-    
-    log_success "Migrations completed successfully"
-}
+    # Activate virtual environment
 
 # Step 7: Create superuser
 create_superuser() {
     log_info "Creating Django superuser..."
     
     cd "$DJANGO_DIR" || exit 1
-    
+    # Activate virtual environment
+    PYTHON_BIN="/home/user/krystal-company-apps/company_crm_system/.venv/bin/python"
     # Create superuser non-interactively
-    python manage.py shell -c "
+    "$PYTHON_BIN" manage.py shell -c "
 from django.contrib.auth import get_user_model
 User = get_user_model()
 if not User.objects.filter(username='admin').exists():
@@ -196,8 +177,9 @@ test_connection() {
     log_info "Testing database connection..."
     
     cd "$DJANGO_DIR" || exit 1
-    
-    python manage.py shell -c "
+    # Activate virtual environment
+    PYTHON_BIN="/home/user/krystal-company-apps/company_crm_system/.venv/bin/python"
+    "$PYTHON_BIN" manage.py shell -c "
 from django.db import connection
 cursor = connection.cursor()
 cursor.execute('SELECT version()')
@@ -212,37 +194,16 @@ print(f'Database connection successful: {version}')
 import_youtube_data() {
     log_info "Importing YouTube creators data..."
     
-    cd "$DJANGO_DIR" || exit 1
-    
+    PYTHON_BIN="/home/user/krystal-company-apps/company_crm_system/.venv/bin/python"
     # Use the fixed CSV with correct headers
     CSV_FILE="../youtube_creators_import_fixed.csv"
-    
-    if [ -f "$CSV_FILE" ]; then
-        log_info "Found fixed CSV file, importing..."
-        
-        # Create a custom import script for the fixed CSV
-        python manage.py shell -c "
-import csv
-from crm.models import Customer
-from pathlib import Path
-
-csv_path = Path('$CSV_FILE')
-imported = 0
-errors = 0
-
-with open(csv_path, 'r', encoding='utf-8') as file:
-    reader = csv.DictReader(file)
-    
-    for row in reader:
-        try:
-            youtube_handle = row.get('youtube_handle', '').strip()
-            
-            if not youtube_handle:
-                continue
-                
-            # Check for duplicates
-            if Customer.objects.filter(youtube_handle__iexact=youtube_handle).exists():
-                print(f'Duplicate: @{youtube_handle}')
+        if [ -f "$CSV_FILE" ]; then
+            log_info "Found fixed CSV file, importing..."
+            "$PYTHON_BIN" manage.py import_youtube_creators --file="$CSV_FILE"
+            log_success "YouTube data import completed"
+        else
+            log_warning "Fixed CSV file not found, skipping YouTube import"
+        fi
                 continue
             
             customer = Customer(
