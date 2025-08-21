@@ -51,17 +51,17 @@ LOCAL_IPS=$(ifconfig | grep "inet " | grep -v "127.0.0.1" | awk '{print $2}')
 echo -e "${GREEN}   Local IP addresses:${NC}"
 echo "$LOCAL_IPS" | while read ip; do
     if [ ! -z "$ip" ]; then
-        echo -e "${GREEN}   • http://$ip:8082${NC}"
+        echo -e "${GREEN}   • http://$ip:8083${NC}"
     fi
 done
 
 echo ""
 echo -e "${BLUE}📱 Access URLs for testing devices:${NC}"
-echo -e "${GREEN}   • Local: http://localhost:8082${NC}"
-echo -e "${GREEN}   • Local: http://127.0.0.1:8082${NC}"
+echo -e "${GREEN}   • Local: http://localhost:8083${NC}"
+echo -e "${GREEN}   • Local: http://127.0.0.1:8083${NC}"
 echo "$LOCAL_IPS" | while read ip; do
     if [ ! -z "$ip" ]; then
-        echo -e "${GREEN}   • Network: http://$ip:8082${NC}"
+        echo -e "${GREEN}   • Network: http://$ip:8083${NC}"
     fi
 done
 
@@ -84,4 +84,4 @@ echo -e "${YELLOW}💡 Press Ctrl+C to stop the server${NC}"
 echo ""
 
 # Start the development server with network access
-python manage.py runserver 0.0.0.0:8082
+python manage.py runserver 0.0.0.0:8083
