@@ -25,6 +25,7 @@ from .communication_services import CommunicationManager
 from .forms import CustomerForm
 from .utils import generate_customer_csv_response, validate_uat_access
 from .csv_import_handler import CSVImportHandler
+from .data_quality import DataQualityService
 
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all()
@@ -173,6 +174,42 @@ class CustomerViewSet(viewsets.ModelViewSet):
                 'missing_fields': result.get('missing_fields'),
                 'headers': result.get('headers')
             }, status=400)
+    
+    @action(detail=False, methods=['get', 'post'])
+    @throttle_classes([UserRateThrottle])
+    def data_quality(self, request):
+        """Data quality analysis and fixes"""
+        service = DataQualityService()
+        
+        if request.method == 'GET':
+            # Return data quality report
+            report = service.get_data_quality_report()
+            return Response(report)
+        
+        elif request.method == 'POST':
+            # Run data quality fixes
+            action = request.data.get('action', 'fix_all')
+            
+            if action == 'fix_all':
+                results = service.fix_failed_records()
+                return Response({
+                    'success': True,
+                    'message': f'Data quality fixes completed. {results["fixed"]} customers were fixed.',
+                    'results': results
+                })
+            
+            elif action == 'report_only':
+                report = service.get_data_quality_report()
+                return Response({
+                    'success': True,
+                    'message': 'Data quality report generated',
+                    'report': report
+                })
+            
+            else:
+                return Response({
+                    'error': 'Invalid action. Use "fix_all" or "report_only"'
+                }, status=400)
 
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()

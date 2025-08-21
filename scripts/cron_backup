@@ -1,0 +1,19 @@
+# CRM Database Backup Cron Configuration
+# This file should be copied to /etc/cron.d/ on the host system
+# or added to the user's crontab using: crontab -e
+
+# Environment variables for cron jobs
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+BACKUP_RETENTION_DAYS=30
+DB_NAME=crm_db
+DB_USER=crm_user
+
+# Run backup daily at 2:00 AM
+0 2 * * * cd /path/to/company_crm_system && ./scripts/backup_database.sh >> /var/log/crm_backup.log 2>&1
+
+# Run backup every 6 hours during business hours (6 AM, 12 PM, 6 PM)
+0 6,12,18 * * * cd /path/to/company_crm_system && ./scripts/backup_database.sh >> /var/log/crm_backup.log 2>&1
+
+# Weekly backup cleanup and verification (Sunday at 3 AM)
+0 3 * * 0 cd /path/to/company_crm_system && find ./backups -name "crm_backup_*.sql.gz" -mtime +30 -delete && echo "Weekly backup cleanup completed at $(date)" >> /var/log/crm_backup.log
