@@ -1,65 +1,63 @@
-# Git
-.git
-.gitignore
-
-# Python
-__pycache__
+# Development files
 *.pyc
 *.pyo
 *.pyd
-.Python
-env
-pip-log.txt
-pip-delete-this-directory.txt
+__pycache__
+.git
+.gitignore
+README.md
+*.md
 
-# Django
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Development
-.vscode
-.idea
+# IDE
+.vscode/
+.idea/
 *.swp
 *.swo
-*~
-
-# Testing
-.coverage
-.pytest_cache
-htmlcov
-
-# Documentation
-docs/_build
-
-# Virtual environments
-venv
-.venv
-env
-.env
 
 # OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
+# Virtual environments
+venv/
+env/
+.virtualenv/
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Node modules (if any)
+node_modules/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Database files (will be created in volumes)
+*.sqlite3
+*.db
+
+# Environment files (will be passed as environment variables)
+.env*
+!.env.example
+
 # Temporary files
-*.tmp
-*.temp
-nohup.out
+.tmp/
+tmp/
 
-# Secrets and environment
-.env.local
-.env.development
-.env.test
-.env.production
-secrets.json
+# Documentation
+docs/
+documentation/
 
-# Media and static files (should be served differently in production)
-media/
-staticfiles/
+# Deployment scripts (not needed in container)
+deploy/
+scripts/
+*.sh
+!entrypoint.sh
