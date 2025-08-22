@@ -2,7 +2,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views, frontend_views
-from .monitoring import health_check_view, metrics_view
+# from .monitoring import health_check_view, metrics_view  # Temporarily disabled
 
 # API Routes
 router = DefaultRouter()
@@ -47,6 +47,6 @@ urlpatterns = [
     path('api-auth/', include('rest_framework.urls')),
     
     # Monitoring endpoints
-    path('health/', health_check_view, name='health_check'),
-    path('metrics/', metrics_view, name='metrics'),
+    # path('health/', health_check_view, name='health_check'),  # Temporarily disabled
+    # path('metrics/', metrics_view, name='metrics'),  # Temporarily disabled
 ]
