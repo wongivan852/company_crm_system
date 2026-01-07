@@ -43,6 +43,7 @@ class CustomerForm(forms.ModelForm):
 
             # Tab 4: Preferences & Consent
             'customer_type', 'status',
+            'customer_centre', 'service_subscribed',
             'preferred_communication_method',
             'preferred_learning_format', 'interests',
             'marketing_consent', 'data_processing_consent', 'newsletter_subscription',
@@ -266,6 +267,8 @@ class CustomerForm(forms.ModelForm):
             # Preferences & Consent
             'customer_type': forms.Select(attrs={'class': 'form-select'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
+            'customer_centre': forms.Select(attrs={'class': 'form-select'}),
+            'service_subscribed': forms.Select(attrs={'class': 'form-select'}),
             'preferred_communication_method': forms.Select(attrs={
                 'class': 'form-select'
             }),
@@ -318,6 +321,8 @@ class CustomerForm(forms.ModelForm):
             'instagram_handle': 'Instagram handle without the @ symbol.',
             'youtube_handle': 'YouTube handle without the @ symbol.',
             'youtube_channel_url': 'Full YouTube channel URL.',
+            'customer_centre': 'Assigned service centre for this customer.',
+            'service_subscribed': 'Primary service the customer is subscribed to.',
             'marketing_consent': 'Consent to receive marketing communications.',
             'data_processing_consent': 'Consent to data processing.',
             'newsletter_subscription': 'Subscribe to newsletter.',

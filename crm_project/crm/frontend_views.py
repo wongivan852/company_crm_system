@@ -16,36 +16,6 @@ from .utils import generate_customer_csv_response
 logger = logging.getLogger(__name__)
 
 @login_required
-def dashboard(request):
-    """CRM Dashboard with key metrics - SECURE LOGIN REQUIRED"""
-    # Key metrics
-    total_customers = Customer.objects.count()
-    active_customers = Customer.objects.filter(status='active').count()
-    total_courses = Course.objects.filter(is_active=True).count() if hasattr(Course, 'objects') else 0
-    total_enrollments = Enrollment.objects.filter(status__in=['registered', 'confirmed']).count() if hasattr(Enrollment, 'objects') else 0
-    
-    # Recent customers
-    recent_customers = Customer.objects.order_by('-created_at')[:5]
-    
-    # Upcoming courses
-    from django.utils import timezone
-    upcoming_courses = Course.objects.filter(
-        start_date__gte=timezone.now(),
-        is_active=True
-    ).order_by('start_date')[:5] if hasattr(Course, 'start_date') else []
-    
-    context = {
-        'total_customers': total_customers,
-        'active_customers': active_customers,
-        'total_courses': total_courses,
-        'total_enrollments': total_enrollments,
-        'recent_customers': recent_customers,
-        'upcoming_courses': upcoming_courses,
-        'page_title': 'Dashboard - Secure Access',
-    }
-    return render(request, 'crm/dashboard.html', context)
-
-@login_required
 def customer_create(request):
     """Create new customer - SECURE LOGIN REQUIRED"""
     if request.method == 'POST':
@@ -174,11 +144,10 @@ def api_youtube_test(request):
     return render(request, 'crm/api_youtube_test.html')
 
 @login_required
-@login_required
 def customer_list(request):
     """List all customers with search and filter capabilities - SECURE LOGIN REQUIRED"""
     customers = Customer.objects.all()
-    
+
     # Search functionality
     search_query = request.GET.get('search')
     if search_query:
@@ -188,30 +157,44 @@ def customer_list(request):
             Q(email_primary__icontains=search_query) |
             Q(company_primary__icontains=search_query)
         )
-    
+
     # Filter by customer type
     customer_type = request.GET.get('customer_type')
     if customer_type:
         customers = customers.filter(customer_type=customer_type)
-    
+
     # Filter by status
     status = request.GET.get('status')
     if status:
         customers = customers.filter(status=status)
-    
+
+    # Filter by customer centre
+    customer_centre = request.GET.get('customer_centre')
+    if customer_centre:
+        customers = customers.filter(customer_centre=customer_centre)
+
+    # Filter by service subscribed
+    service_subscribed = request.GET.get('service_subscribed')
+    if service_subscribed:
+        customers = customers.filter(service_subscribed=service_subscribed)
+
     # Pagination
     paginator = Paginator(customers, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
+
     context = {
         'page_obj': page_obj,
         'customers': page_obj,  # For backward compatibility
         'search_query': search_query,
         'customer_types': Customer.CUSTOMER_TYPES,
         'statuses': Customer.STATUS_CHOICES,
+        'customer_centres': Customer.CUSTOMER_CENTRE_CHOICES,
+        'services_subscribed': Customer.SERVICE_SUBSCRIBED_CHOICES,
         'selected_type': customer_type,
         'selected_status': status,
+        'selected_centre': customer_centre,
+        'selected_service': service_subscribed,
         'page_title': 'Customer List - Secure Access',
     }
     return render(request, 'crm/customer_list.html', context)
@@ -360,19 +343,45 @@ def dashboard(request):
     from django.utils import timezone
     from django.db.models import Sum, Count
     from datetime import timedelta
-    
+
     today = timezone.now().date()
     yesterday = today - timedelta(days=1)
-    
+
     # Key metrics
     total_customers = Customer.objects.count()
     active_customers = Customer.objects.filter(status='active').count()
     active_percentage = round((active_customers / total_customers * 100) if total_customers > 0 else 0)
     new_customers_today = Customer.objects.filter(created_at__date=today).count()
-    
+
     total_courses = Course.objects.filter(is_active=True).count()
     total_enrollments = Enrollment.objects.filter(status__in=['registered', 'confirmed']).count()
-    
+
+    # Customer Centre statistics
+    centre_stats = Customer.objects.exclude(customer_centre='').values('customer_centre').annotate(
+        count=Count('id')
+    ).order_by('-count')[:10]
+    # Add display names
+    centre_choices_dict = dict(Customer.CUSTOMER_CENTRE_CHOICES)
+    for stat in centre_stats:
+        stat['display_name'] = centre_choices_dict.get(stat['customer_centre'], stat['customer_centre'])
+
+    # Service Subscribed statistics
+    service_stats = Customer.objects.exclude(service_subscribed='').values('service_subscribed').annotate(
+        count=Count('id')
+    ).order_by('-count')[:10]
+    # Add display names
+    service_choices_dict = dict(Customer.SERVICE_SUBSCRIBED_CHOICES)
+    for stat in service_stats:
+        stat['display_name'] = service_choices_dict.get(stat['service_subscribed'], stat['service_subscribed'])
+
+    # Customer Type statistics
+    type_stats = Customer.objects.values('customer_type').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    type_choices_dict = dict(Customer.CUSTOMER_TYPES)
+    for stat in type_stats:
+        stat['display_name'] = type_choices_dict.get(stat['customer_type'], stat['customer_type'])
+
     # Stripe payment metrics
     try:
         from .models import StripePayment, Activity
@@ -382,10 +391,10 @@ def dashboard(request):
         )
         total_revenue = payment_stats['total'] or 0
         payment_count = payment_stats['count'] or 0
-        
+
         # Recent payments
         recent_payments = StripePayment.objects.select_related('customer').order_by('-payment_date')[:10]
-        
+
         # Activity timeline
         activities = Activity.objects.select_related('customer').order_by('-created_at')[:20]
     except Exception:
@@ -393,16 +402,16 @@ def dashboard(request):
         payment_count = 0
         recent_payments = []
         activities = []
-    
+
     # Recent customers
     recent_customers = Customer.objects.order_by('-created_at')[:5]
-    
+
     # Upcoming courses
     upcoming_courses = Course.objects.filter(
         start_date__gte=timezone.now(),
         is_active=True
     ).order_by('start_date')[:5]
-    
+
     context = {
         'total_customers': total_customers,
         'active_customers': active_customers,
@@ -416,6 +425,9 @@ def dashboard(request):
         'upcoming_courses': upcoming_courses,
         'recent_payments': recent_payments,
         'activities': activities,
+        'centre_stats': centre_stats,
+        'service_stats': service_stats,
+        'type_stats': type_stats,
         'today': today,
         'yesterday': yesterday,
         'page_title': 'Dashboard',

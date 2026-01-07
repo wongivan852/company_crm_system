@@ -114,6 +114,22 @@
                                     </span>
                                 </td>
                             </tr>
+                            {% if customer.customer_centre %}
+                            <tr>
+                                <td><strong>Customer Centre:</strong></td>
+                                <td>
+                                    <span class="badge bg-primary">{{ customer.get_customer_centre_display }}</span>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% if customer.service_subscribed %}
+                            <tr>
+                                <td><strong>Service Subscribed:</strong></td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ customer.get_service_subscribed_display }}</span>
+                                </td>
+                            </tr>
+                            {% endif %}
                             {% if customer.country_region %}
                             <tr>
                                 <td><strong>Country/Region:</strong></td>
