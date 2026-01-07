@@ -323,6 +323,25 @@ class CustomerForm(forms.ModelForm):
             'newsletter_subscription': 'Subscribe to newsletter.',
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make fields with model defaults not required in the form
+        # so the model defaults are used when not provided
+        fields_with_defaults = [
+            'preferred_communication_method',  # default: 'email'
+            'customer_type',  # default: 'individual'
+            'status',  # default: 'active'
+        ]
+        for field_name in fields_with_defaults:
+            if field_name in self.fields:
+                self.fields[field_name].required = False
+
+        # Make key identification fields required even if model allows blanks
+        required_fields = ['first_name', 'last_name', 'email_primary']
+        for field_name in required_fields:
+            if field_name in self.fields:
+                self.fields[field_name].required = True
+
 
 class CustomerCommunicationPreferenceForm(forms.ModelForm):
     """Form for managing customer communication preferences"""
