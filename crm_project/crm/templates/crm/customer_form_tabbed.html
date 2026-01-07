@@ -1,0 +1,697 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}{{ title }} - CRM System{% endblock %}
+
+{% block extra_head %}
+<style>
+.nav-tabs .nav-link {
+    color: #495057;
+    border: 1px solid transparent;
+}
+.nav-tabs .nav-link.active {
+    background-color: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+.nav-tabs .nav-link:hover:not(.active) {
+    background-color: #e9ecef;
+}
+.tab-pane {
+    padding: 20px 0;
+}
+.form-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+.form-section h6 {
+    color: #0d6efd;
+    border-bottom: 2px solid #0d6efd;
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+}
+.country-code {
+    max-width: 80px;
+    text-align: center;
+    font-weight: 500;
+}
+.required-field::after {
+    content: " *";
+    color: red;
+}
+.consent-box {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 8px;
+    padding: 15px;
+}
+.internal-notes-box {
+    background: #f8d7da;
+    border: 1px solid #dc3545;
+    border-radius: 8px;
+    padding: 15px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-user-{% if form.instance.pk %}edit{% else %}plus{% endif %}"></i> {{ title }}</h1>
+    <div>
+        <a href="{% url 'crm:customer_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<form method="post" novalidate>
+    {% csrf_token %}
+
+    <!-- Tab Navigation -->
+    <ul class="nav nav-tabs mb-3" id="customerTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab">
+                <i class="fas fa-user"></i> Basic Info
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="contact-tab" data-bs-toggle="tab" data-bs-target="#contact" type="button" role="tab">
+                <i class="fas fa-address-book"></i> Contact
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="professional-tab" data-bs-toggle="tab" data-bs-target="#professional" type="button" role="tab">
+                <i class="fas fa-briefcase"></i> Professional
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="preferences-tab" data-bs-toggle="tab" data-bs-target="#preferences" type="button" role="tab">
+                <i class="fas fa-cog"></i> Preferences
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="internal-tab" data-bs-toggle="tab" data-bs-target="#internal" type="button" role="tab">
+                <i class="fas fa-lock"></i> Internal
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="customerTabsContent">
+
+        <!-- Tab 1: Basic Information -->
+        <div class="tab-pane fade show active" id="basic" role="tabpanel">
+            <div class="row">
+                <div class="col-md-8">
+                    <!-- Name Section -->
+                    <div class="form-section">
+                        <h6><i class="fas fa-id-card"></i> Name Information</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label required-field">First Name</label>
+                                {{ form.first_name }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Middle Name</label>
+                                {{ form.middle_name }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label required-field">Last Name</label>
+                                {{ form.last_name }}
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Preferred Name</label>
+                                {{ form.preferred_name }}
+                                <small class="text-muted">Nickname or name they prefer</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Title</label>
+                                {{ form.title }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Designation</label>
+                                {{ form.designation }}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label class="form-label">Name Suffix</label>
+                                {{ form.name_suffix }}
+                                <small class="text-muted">Jr., Sr., III, etc.</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Maiden Name</label>
+                                {{ form.maiden_name }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Other Names</label>
+                                {{ form.other_names }}
+                                <small class="text-muted">Aliases, previous names</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Personal Section -->
+                    <div class="form-section">
+                        <h6><i class="fas fa-user-circle"></i> Personal Information</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label class="form-label">Gender</label>
+                                {{ form.gender }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Date of Birth</label>
+                                {{ form.date_of_birth }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Nationality</label>
+                                {{ form.nationality }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Emergency Contact -->
+                    <div class="form-section">
+                        <h6><i class="fas fa-ambulance"></i> Emergency Contact</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Contact Name</label>
+                                {{ form.emergency_contact_name }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Relationship</label>
+                                {{ form.emergency_contact_relationship }}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Phone</label>
+                                {{ form.emergency_contact_phone }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Email</label>
+                                {{ form.emergency_contact_email }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <i class="fas fa-info-circle"></i> Basic Info Help
+                        </div>
+                        <div class="card-body">
+                            <p class="small"><strong>Required fields</strong> are marked with *</p>
+                            <ul class="small">
+                                <li><strong>Designation:</strong> Professional titles like Prof., Dr., MBA, etc.</li>
+                                <li><strong>Preferred Name:</strong> The name they prefer to be called</li>
+                                <li><strong>Emergency Contact:</strong> Important for course participants</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Contact Information -->
+        <div class="tab-pane fade" id="contact" role="tabpanel">
+            <div class="row">
+                <div class="col-md-8">
+                    <!-- Email Section -->
+                    <div class="form-section">
+                        <h6><i class="fas fa-envelope"></i> Email Addresses</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label required-field">Primary Email</label>
+                                {{ form.email_primary }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Secondary Email</label>
+                                {{ form.email_secondary }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Phone Section -->
+                    <div class="form-section">
+                        <h6><i class="fas fa-phone"></i> Phone Numbers</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Primary Phone</label>
+                                <div class="input-group">
+                                    {{ form.phone_primary_country_code }}
+                                    {{ form.phone_primary }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Secondary Phone</label>
+                                <div class="input-group">
+                                    {{ form.phone_secondary_country_code }}
+                                    {{ form.phone_secondary }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Fax</label>
+                                <div class="input-group">
+                                    {{ form.fax_country_code }}
+                                    {{ form.fax }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Messaging Section -->
+                    <div class="form-section">
+                        <h6><i class="fas fa-comments"></i> Messaging Apps</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">WhatsApp</label>
+                                <div class="input-group">
+                                    {{ form.whatsapp_country_code }}
+                                    {{ form.whatsapp_number }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">WeChat ID</label>
+                                {{ form.wechat_id }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Social Media Section -->
+                    <div class="form-section">
+                        <h6><i class="fas fa-share-alt"></i> Social Media</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">LinkedIn</label>
+                                {{ form.linkedin_profile }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Facebook</label>
+                                {{ form.facebook_profile }}
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Twitter/X</label>
+                                {{ form.twitter_handle }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Instagram</label>
+                                {{ form.instagram_handle }}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">YouTube Handle</label>
+                                {{ form.youtube_handle }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">YouTube Channel URL</label>
+                                {{ form.youtube_channel_url }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <i class="fas fa-info-circle"></i> Contact Help
+                        </div>
+                        <div class="card-body">
+                            <p class="small"><strong>Country codes</strong> are auto-filled based on country selection.</p>
+                            <ul class="small">
+                                <li><strong>Social handles:</strong> Enter without @ symbol</li>
+                                <li><strong>URLs:</strong> Will be auto-formatted</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Professional Information -->
+        <div class="tab-pane fade" id="professional" role="tabpanel">
+            <div class="row">
+                <div class="col-md-8">
+                    <!-- Company Section -->
+                    <div class="form-section">
+                        <h6><i class="fas fa-building"></i> Company Information</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Primary Company</label>
+                                {{ form.company_primary }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Primary Position</label>
+                                {{ form.position_primary }}
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Secondary Company</label>
+                                {{ form.company_secondary }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Secondary Position</label>
+                                {{ form.position_secondary }}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <label class="form-label">Company Website</label>
+                                {{ form.company_website }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Experience Section -->
+                    <div class="form-section">
+                        <h6><i class="fas fa-graduation-cap"></i> Education & Experience</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label class="form-label">Education Level</label>
+                                {{ form.education_level }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Profession</label>
+                                {{ form.profession }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Years of Experience</label>
+                                {{ form.years_of_experience }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Address Section -->
+                    <div class="form-section">
+                        <h6><i class="fas fa-map-marker-alt"></i> Address Information</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label class="form-label required-field">Country/Region</label>
+                                {{ form.country_region }}
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Primary Address</label>
+                                {{ form.address_primary }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Secondary Address</label>
+                                {{ form.address_secondary }}
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label class="form-label">Street Address</label>
+                                {{ form.address }}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label class="form-label">City</label>
+                                {{ form.city }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">State/Province</label>
+                                {{ form.state_province }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Postal Code</label>
+                                {{ form.postal_code }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <i class="fas fa-info-circle"></i> Professional Help
+                        </div>
+                        <div class="card-body">
+                            <p class="small">Capture complete professional profile for business contacts.</p>
+                            <ul class="small">
+                                <li><strong>Secondary company:</strong> Previous or additional employment</li>
+                                <li><strong>Education level:</strong> e.g., Bachelor's, Master's, PhD</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Preferences & Consent -->
+        <div class="tab-pane fade" id="preferences" role="tabpanel">
+            <div class="row">
+                <div class="col-md-8">
+                    <!-- CRM Status Section -->
+                    <div class="form-section">
+                        <h6><i class="fas fa-tags"></i> CRM Classification</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label required-field">Customer Type</label>
+                                {{ form.customer_type }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label required-field">Status</label>
+                                {{ form.status }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Communication Preferences -->
+                    <div class="form-section">
+                        <h6><i class="fas fa-bullhorn"></i> Communication Preferences</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Preferred Communication Method</label>
+                                {{ form.preferred_communication_method }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Preferred Learning Format</label>
+                                {{ form.preferred_learning_format }}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <label class="form-label">Interests</label>
+                                {{ form.interests }}
+                                <small class="text-muted">Comma-separated list of interests</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Consent Section -->
+                    <div class="consent-box">
+                        <h6><i class="fas fa-check-circle"></i> Consent & Subscriptions</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    {{ form.marketing_consent }}
+                                    <label class="form-check-label">Marketing Consent</label>
+                                </div>
+                                <small class="text-muted">Consent to receive marketing communications</small>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    {{ form.data_processing_consent }}
+                                    <label class="form-check-label">Data Processing Consent</label>
+                                </div>
+                                <small class="text-muted">Consent to data processing</small>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    {{ form.newsletter_subscription }}
+                                    <label class="form-check-label">Newsletter Subscription</label>
+                                </div>
+                                <small class="text-muted">Subscribe to newsletter</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header bg-warning">
+                            <i class="fas fa-info-circle"></i> Preferences Help
+                        </div>
+                        <div class="card-body">
+                            <p class="small"><strong>Customer types:</strong></p>
+                            <ul class="small">
+                                <li><strong>Individual:</strong> Personal customer</li>
+                                <li><strong>Corporate:</strong> Business customer</li>
+                                <li><strong>Student:</strong> Student customer</li>
+                                <li><strong>Instructor:</strong> Teaching staff</li>
+                                <li><strong>YouTuber:</strong> Content creator</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 5: Internal Notes -->
+        <div class="tab-pane fade" id="internal" role="tabpanel">
+            <div class="row">
+                <div class="col-md-8">
+                    <!-- Source Tracking -->
+                    <div class="form-section">
+                        <h6><i class="fas fa-search"></i> Source Tracking</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Source</label>
+                                {{ form.source }}
+                                <small class="text-muted">How did they find us?</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Referral Source</label>
+                                {{ form.referral_source }}
+                                <small class="text-muted">Who referred them?</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Internal Notes -->
+                    <div class="internal-notes-box">
+                        <h6><i class="fas fa-lock"></i> Internal Notes (Staff Only)</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label class="form-label">Internal Notes</label>
+                                {{ form.internal_notes }}
+                                <small class="text-danger">Not visible to customer</small>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <label class="form-label">Special Requirements</label>
+                                {{ form.special_requirements }}
+                                <small class="text-muted">Accommodations, accessibility needs, etc.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card border-danger">
+                        <div class="card-header bg-danger text-white">
+                            <i class="fas fa-exclamation-triangle"></i> Internal Only
+                        </div>
+                        <div class="card-body">
+                            <p class="small text-danger"><strong>Warning:</strong> Information in this tab is for internal use only and should never be shared with customers.</p>
+                            <ul class="small">
+                                <li><strong>Source:</strong> Track acquisition channels</li>
+                                <li><strong>Notes:</strong> Internal observations</li>
+                                <li><strong>Requirements:</strong> Special needs</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Actions -->
+    <div class="card mt-4">
+        <div class="card-body d-flex justify-content-between">
+            <a href="{% url 'crm:customer_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-times"></i> Cancel
+            </a>
+            <div>
+                <button type="button" class="btn btn-outline-primary me-2" onclick="validateAllTabs()">
+                    <i class="fas fa-check-circle"></i> Validate
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Customer
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+
+<script>
+// Country code mapping
+const countryCodeMap = {
+    'CN': '+86', 'HK': '+852', 'TW': '+886', 'MO': '+853',
+    'SG': '+65', 'MY': '+60', 'TH': '+66', 'VN': '+84',
+    'PH': '+63', 'ID': '+62', 'KR': '+82', 'JP': '+81',
+    'IN': '+91', 'AU': '+61', 'NZ': '+64',
+    'GB': '+44', 'DE': '+49', 'FR': '+33', 'IT': '+39',
+    'ES': '+34', 'NL': '+31', 'BE': '+32', 'CH': '+41',
+    'AT': '+43', 'SE': '+46', 'NO': '+47', 'DK': '+45', 'FI': '+358',
+    'US': '+1', 'CA': '+1', 'MX': '+52', 'BR': '+55',
+    'AR': '+54', 'CL': '+56', 'CO': '+57', 'PE': '+51',
+    'AE': '+971', 'SA': '+966', 'IL': '+972', 'ZA': '+27',
+    'EG': '+20', 'KE': '+254', 'NG': '+234',
+    'RU': '+7', 'TR': '+90'
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Country code auto-update
+    const countrySelect = document.getElementById('id_country_region');
+    if (countrySelect) {
+        countrySelect.addEventListener('change', function() {
+            const phoneCode = countryCodeMap[this.value] || '+1';
+            const codeFields = [
+                'id_phone_primary_country_code',
+                'id_phone_secondary_country_code',
+                'id_whatsapp_country_code',
+                'id_fax_country_code'
+            ];
+            codeFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field && !field.value) {
+                    field.value = phoneCode;
+                }
+            });
+            // Always update primary
+            const primaryField = document.getElementById('id_phone_primary_country_code');
+            if (primaryField) primaryField.value = phoneCode;
+        });
+    }
+});
+
+function validateAllTabs() {
+    const requiredFields = [
+        {field: 'id_first_name', tab: 'basic-tab', name: 'First Name'},
+        {field: 'id_last_name', tab: 'basic-tab', name: 'Last Name'},
+        {field: 'id_email_primary', tab: 'contact-tab', name: 'Primary Email'},
+        {field: 'id_country_region', tab: 'professional-tab', name: 'Country/Region'},
+        {field: 'id_customer_type', tab: 'preferences-tab', name: 'Customer Type'},
+        {field: 'id_status', tab: 'preferences-tab', name: 'Status'}
+    ];
+
+    let errors = [];
+    requiredFields.forEach(item => {
+        const field = document.getElementById(item.field);
+        if (!field || !field.value) {
+            errors.push(item.name + ' (in ' + item.tab.replace('-tab', '').replace('-', ' ') + ' tab)');
+        }
+    });
+
+    if (errors.length > 0) {
+        alert('Missing required fields:\n\n' + errors.join('\n'));
+    } else {
+        alert('All required fields are filled!');
+    }
+}
+</script>
+{% endblock %}

@@ -944,3 +944,141 @@ class YouTubeMessage(models.Model):
         if self.target_video_url:
             return self.target_video_url
         return f"https://youtube.com/@{self.target_youtube_handle}"
+
+class Activity(models.Model):
+    """Track all activities in the CRM system for timeline display"""
+    
+    ACTIVITY_TYPES = [
+        ('customer_created', 'Customer Created'),
+        ('customer_updated', 'Customer Updated'),
+        ('customer_deleted', 'Customer Deleted'),
+        ('email_sent', 'Email Sent'),
+        ('whatsapp_sent', 'WhatsApp Sent'),
+        ('wechat_sent', 'WeChat Sent'),
+        ('enrollment_created', 'Enrollment Created'),
+        ('enrollment_updated', 'Enrollment Updated'),
+        ('payment_received', 'Payment Received'),
+        ('payment_failed', 'Payment Failed'),
+        ('payment_refunded', 'Payment Refunded'),
+        ('course_created', 'Course Created'),
+        ('conference_created', 'Conference Created'),
+        ('note_added', 'Note Added'),
+        ('import_completed', 'Import Completed'),
+        ('export_completed', 'Export Completed'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    activity_type = models.CharField(max_length=30, choices=ACTIVITY_TYPES)
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    
+    # Related objects (optional)
+    customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True, related_name='activities')
+    
+    # Metadata
+    metadata = models.JSONField(default=dict, blank=True, help_text="Additional activity data")
+    
+    # User who performed the action
+    performed_by = models.CharField(max_length=100, blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name_plural = "Activities"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['activity_type']),
+            models.Index(fields=['created_at']),
+            models.Index(fields=['customer']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_activity_type_display()}: {self.title}"
+    
+    @classmethod
+    def log(cls, activity_type, title, description='', customer=None, metadata=None, performed_by=''):
+        """Helper method to create activity log entries"""
+        return cls.objects.create(
+            activity_type=activity_type,
+            title=title,
+            description=description,
+            customer=customer,
+            metadata=metadata or {},
+            performed_by=performed_by
+        )
+
+
+class StripePayment(models.Model):
+    """Store Stripe payment data imported from CSV"""
+    
+    PAYMENT_STATUS = [
+        ('paid', 'Paid'),
+        ('failed', 'Failed'),
+        ('canceled', 'Canceled'),
+        ('pending', 'Pending'),
+        ('refunded', 'Refunded'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    stripe_id = models.CharField(max_length=100, unique=True, help_text="Stripe payment ID")
+    
+    # Payment details
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    amount_refunded = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    currency = models.CharField(max_length=3)
+    converted_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    converted_currency = models.CharField(max_length=3, blank=True)
+    
+    # Status
+    status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='pending')
+    
+    # Customer info
+    customer_email = models.EmailField(blank=True)
+    stripe_customer_id = models.CharField(max_length=100, blank=True)
+    customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True, related_name='stripe_payments')
+    
+    # Metadata from Stripe
+    site = models.CharField(max_length=100, blank=True, help_text="Site/platform")
+    plan_name = models.CharField(max_length=100, blank=True)
+    plan_days = models.IntegerField(null=True, blank=True)
+    user_name = models.CharField(max_length=200, blank=True)
+    
+    # Fees
+    fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # Dates
+    payment_date = models.DateTimeField(help_text="When payment was created")
+    refunded_date = models.DateTimeField(null=True, blank=True)
+    
+    # Source account
+    source_account = models.CharField(max_length=50, blank=True, help_text="CGGE, KI, or KT")
+    
+    # Raw data
+    raw_data = models.JSONField(default=dict, blank=True)
+    
+    # Import tracking
+    imported_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-payment_date']
+        indexes = [
+            models.Index(fields=['stripe_id']),
+            models.Index(fields=['customer_email']),
+            models.Index(fields=['status']),
+            models.Index(fields=['payment_date']),
+            models.Index(fields=['source_account']),
+        ]
+    
+    def __str__(self):
+        return f"{self.stripe_id}: {self.amount} {self.currency} ({self.status})"
+    
+    @property
+    def display_amount(self):
+        """Return formatted amount with currency"""
+        return f"{self.amount} {self.currency.upper()}"
+    
+    @property
+    def is_successful(self):
+        """Check if payment was successful"""
+        return self.status == 'paid'

@@ -1,0 +1,149 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}Stripe Payments - CRM System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-credit-card"></i> Stripe Payments</h1>
+    <div>
+        <a href="{% url 'crm:import_stripe' %}" class="btn btn-primary">
+            <i class="fas fa-file-import"></i> Import Payments
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="paid" {% if current_status == 'paid' %}selected{% endif %}>Paid</option>
+                    <option value="failed" {% if current_status == 'failed' %}selected{% endif %}>Failed</option>
+                    <option value="canceled" {% if current_status == 'canceled' %}selected{% endif %}>Canceled</option>
+                    <option value="refunded" {% if current_status == 'refunded' %}selected{% endif %}>Refunded</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Source Account</label>
+                <select name="source" class="form-select">
+                    <option value="">All Sources</option>
+                    <option value="cgge" {% if current_source == 'cgge' %}selected{% endif %}>CGGE</option>
+                    <option value="ki" {% if current_source == 'ki' %}selected{% endif %}>KI</option>
+                    <option value="kt" {% if current_source == 'kt' %}selected{% endif %}>KT</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Search</label>
+                <input type="text" name="search" class="form-control" placeholder="Email, name, or Stripe ID" value="{{ search_query }}">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-outline-primary w-100">
+                    <i class="fas fa-search"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Payments Table -->
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Stripe ID</th>
+                        <th>Customer</th>
+                        <th>Amount</th>
+                        <th>Converted</th>
+                        <th>Status</th>
+                        <th>Source</th>
+                        <th>Plan</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payments %}
+                        <tr>
+                            <td>{{ payment.payment_date|date:"M d, Y H:i" }}</td>
+                            <td><code class="small">{{ payment.stripe_id|truncatechars:20 }}</code></td>
+                            <td>
+                                {% if payment.customer %}
+                                    <a href="{% url 'crm:customer_detail' payment.customer.id %}">
+                                        {{ payment.user_name|default:payment.customer_email }}
+                                    </a>
+                                {% else %}
+                                    {{ payment.customer_email|default:"-" }}
+                                {% endif %}
+                            </td>
+                            <td>{{ payment.amount }} {{ payment.currency|upper }}</td>
+                            <td>
+                                {% if payment.converted_amount %}
+                                    {{ payment.converted_amount }} {{ payment.converted_currency|upper }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if payment.status == 'paid' %}
+                                    <span class="badge bg-success">Paid</span>
+                                {% elif payment.status == 'failed' %}
+                                    <span class="badge bg-danger">Failed</span>
+                                {% elif payment.status == 'canceled' %}
+                                    <span class="badge bg-secondary">Canceled</span>
+                                {% elif payment.status == 'refunded' %}
+                                    <span class="badge bg-warning">Refunded</span>
+                                {% else %}
+                                    <span class="badge bg-info">{{ payment.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge bg-dark">{{ payment.source_account|upper }}</span></td>
+                            <td>{{ payment.plan_name|default:"-" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4 text-muted">
+                                <i class="fas fa-credit-card fa-3x mb-3"></i>
+                                <p>No payments found</p>
+                                <a href="{% url 'crm:import_stripe' %}" class="btn btn-primary">
+                                    <i class="fas fa-file-import"></i> Import Payments
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if payments.has_other_pages %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if payments.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ payments.previous_page_number }}&status={{ current_status }}&source={{ current_source }}&search={{ search_query }}">Previous</a>
+            </li>
+        {% endif %}
+
+        {% for num in payments.paginator.page_range %}
+            {% if payments.number == num %}
+                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > payments.number|add:'-3' and num < payments.number|add:'3' %}
+                <li class="page-item"><a class="page-link" href="?page={{ num }}&status={{ current_status }}&source={{ current_source }}&search={{ search_query }}">{{ num }}</a></li>
+            {% endif %}
+        {% endfor %}
+
+        {% if payments.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ payments.next_page_number }}&status={{ current_status }}&source={{ current_source }}&search={{ search_query }}">Next</a>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

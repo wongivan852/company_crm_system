@@ -1,128 +1,348 @@
 {% extends 'crm/base.html' %}
 
-{% block title %}Dashboard - Learning Institute CRM{% endblock %}
+{% block title %}Dashboard - CRM System{% endblock %}
+
+{% block extra_head %}
+<style>
+.metric-card {
+    transition: transform 0.2s;
+}
+.metric-card:hover {
+    transform: translateY(-5px);
+}
+.timeline-item {
+    border-left: 3px solid #0d6efd;
+    padding-left: 15px;
+    margin-left: 10px;
+    padding-bottom: 15px;
+    position: relative;
+}
+.timeline-item::before {
+    content: '';
+    width: 12px;
+    height: 12px;
+    background: #0d6efd;
+    border-radius: 50%;
+    position: absolute;
+    left: -7.5px;
+    top: 0;
+}
+.timeline-item.success::before { background: #198754; }
+.timeline-item.success { border-left-color: #198754; }
+.timeline-item.warning::before { background: #ffc107; }
+.timeline-item.warning { border-left-color: #ffc107; }
+.timeline-item.danger::before { background: #dc3545; }
+.timeline-item.danger { border-left-color: #dc3545; }
+.timeline-item.info::before { background: #0dcaf0; }
+.timeline-item.info { border-left-color: #0dcaf0; }
+.timeline-date {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+.payment-row:hover {
+    background-color: #f8f9fa;
+}
+.status-badge {
+    font-size: 0.7rem;
+}
+.filter-btn.active {
+    background-color: #0d6efd;
+    color: white;
+}
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2"><i class="fas fa-dashboard"></i> Dashboard</h1>
+    <h1 class="h2"><i class="fas fa-tachometer-alt"></i> Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshDashboard()">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+        <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-calendar"></i> Date Range
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="?range=today">Today</a></li>
+                <li><a class="dropdown-item" href="?range=week">This Week</a></li>
+                <li><a class="dropdown-item" href="?range=month">This Month</a></li>
+                <li><a class="dropdown-item" href="?range=all">All Time</a></li>
+            </ul>
+        </div>
+    </div>
 </div>
 
-<!-- Key Metrics -->
+<!-- Key Metrics Row -->
 <div class="row mb-4">
     <div class="col-md-3">
-        <div class="card bg-primary text-white">
+        <div class="card metric-card bg-primary text-white h-100">
             <div class="card-body">
-                <div class="d-flex justify-content-between">
+                <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h5 class="card-title">Total Customers</h5>
-                        <h2>{{ total_customers }}</h2>
+                        <h6 class="card-subtitle mb-1 text-white-50">Total Customers</h6>
+                        <h2 class="mb-0">{{ total_customers|default:0 }}</h2>
                     </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-users fa-2x"></i>
-                    </div>
+                    <i class="fas fa-users fa-2x opacity-50"></i>
                 </div>
+                <small class="text-white-50">
+                    <i class="fas fa-arrow-up"></i> {{ new_customers_today|default:0 }} today
+                </small>
             </div>
         </div>
     </div>
-    
     <div class="col-md-3">
-        <div class="card bg-success text-white">
+        <div class="card metric-card bg-success text-white h-100">
             <div class="card-body">
-                <div class="d-flex justify-content-between">
+                <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h5 class="card-title">Active Customers</h5>
-                        <h2>{{ active_customers }}</h2>
+                        <h6 class="card-subtitle mb-1 text-white-50">Active Customers</h6>
+                        <h2 class="mb-0">{{ active_customers|default:0 }}</h2>
                     </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-user-check fa-2x"></i>
-                    </div>
+                    <i class="fas fa-user-check fa-2x opacity-50"></i>
                 </div>
+                <small class="text-white-50">
+                    {{ active_percentage|default:0 }}% of total
+                </small>
             </div>
         </div>
     </div>
-    
     <div class="col-md-3">
-        <div class="card bg-info text-white">
+        <div class="card metric-card bg-info text-white h-100">
             <div class="card-body">
-                <div class="d-flex justify-content-between">
+                <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h5 class="card-title">Active Courses</h5>
-                        <h2>{{ total_courses }}</h2>
+                        <h6 class="card-subtitle mb-1 text-white-50">Total Revenue</h6>
+                        <h2 class="mb-0">${{ total_revenue|default:"0.00" }}</h2>
                     </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-book fa-2x"></i>
-                    </div>
+                    <i class="fas fa-dollar-sign fa-2x opacity-50"></i>
                 </div>
+                <small class="text-white-50">
+                    {{ payment_count|default:0 }} payments
+                </small>
             </div>
         </div>
     </div>
-    
     <div class="col-md-3">
-        <div class="card bg-warning text-white">
+        <div class="card metric-card bg-warning text-dark h-100">
             <div class="card-body">
-                <div class="d-flex justify-content-between">
+                <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h5 class="card-title">Enrollments</h5>
-                        <h2>{{ total_enrollments }}</h2>
+                        <h6 class="card-subtitle mb-1 text-dark-50">Active Courses</h6>
+                        <h2 class="mb-0">{{ total_courses|default:0 }}</h2>
                     </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-user-graduate fa-2x"></i>
-                    </div>
+                    <i class="fas fa-book fa-2x opacity-50"></i>
                 </div>
+                <small class="text-dark-50">
+                    {{ total_enrollments|default:0 }} enrollments
+                </small>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Recent Activity -->
+<!-- Main Content Row -->
 <div class="row">
+    <!-- Activity Timeline -->
     <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5><i class="fas fa-user-plus"></i> Recent Customers</h5>
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-stream"></i> Activity Timeline</h5>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-primary filter-btn active" data-filter="all">All</button>
+                    <button type="button" class="btn btn-outline-primary filter-btn" data-filter="customer">Customers</button>
+                    <button type="button" class="btn btn-outline-primary filter-btn" data-filter="payment">Payments</button>
+                </div>
             </div>
-            <div class="card-body">
-                {% if recent_customers %}
-                    <div class="list-group">
-                        {% for customer in recent_customers %}
-                            <a href="{% url 'crm:customer_detail' customer.id %}" class="list-group-item list-group-item-action">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <h6 class="mb-1">{{ customer.first_name }} {{ customer.last_name }}</h6>
-                                    <small>{{ customer.created_at|timesince }} ago</small>
+            <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+                {% if activities %}
+                    {% regroup activities by created_at.date as activities_by_date %}
+                    {% for date_group in activities_by_date %}
+                        <h6 class="text-muted mb-3">
+                            {% if date_group.grouper == today %}
+                                Today
+                            {% elif date_group.grouper == yesterday %}
+                                Yesterday
+                            {% else %}
+                                {{ date_group.grouper|date:"M d, Y" }}
+                            {% endif %}
+                        </h6>
+                        {% for activity in date_group.list %}
+                            <div class="timeline-item {% if 'payment' in activity.activity_type %}{% if activity.activity_type == 'payment_received' %}success{% elif activity.activity_type == 'payment_failed' %}danger{% else %}warning{% endif %}{% elif 'customer' in activity.activity_type %}info{% endif %}" data-type="{{ activity.activity_type }}">
+                                <div class="d-flex justify-content-between">
+                                    <strong>{{ activity.title }}</strong>
+                                    <span class="timeline-date">{{ activity.created_at|time:"H:i" }}</span>
                                 </div>
-                                <p class="mb-1">{{ customer.email }}</p>
-                                <small>{{ customer.get_customer_type_display }} - {{ customer.get_status_display }}</small>
-                            </a>
+                                {% if activity.description %}
+                                    <p class="mb-1 small text-muted">{{ activity.description }}</p>
+                                {% endif %}
+                                {% if activity.customer %}
+                                    <a href="{% url 'crm:customer_detail' activity.customer.id %}" class="small">
+                                        <i class="fas fa-user"></i> {{ activity.customer.first_name }} {{ activity.customer.last_name }}
+                                    </a>
+                                {% endif %}
+                            </div>
                         {% endfor %}
-                    </div>
+                    {% endfor %}
                 {% else %}
-                    <p class="text-muted">No customers yet.</p>
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-history fa-3x mb-3"></i>
+                        <p>No recent activities</p>
+                        <a href="{% url 'crm:customer_create' %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-user-plus"></i> Add First Customer
+                        </a>
+                    </div>
                 {% endif %}
             </div>
         </div>
     </div>
-    
+
+    <!-- Recent Payments -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-credit-card"></i> Recent Payments</h5>
+                <a href="{% url 'crm:stripe_payments' %}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Date</th>
+                                <th>Customer</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if recent_payments %}
+                                {% for payment in recent_payments %}
+                                    <tr class="payment-row">
+                                        <td class="small">{{ payment.payment_date|date:"M d" }}</td>
+                                        <td class="small">
+                                            {% if payment.customer %}
+                                                <a href="{% url 'crm:customer_detail' payment.customer.id %}">
+                                                    {{ payment.user_name|default:payment.customer_email|truncatechars:20 }}
+                                                </a>
+                                            {% else %}
+                                                {{ payment.customer_email|truncatechars:25 }}
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <strong>{{ payment.amount }}</strong>
+                                            <small class="text-muted">{{ payment.currency|upper }}</small>
+                                        </td>
+                                        <td>
+                                            {% if payment.status == 'paid' %}
+                                                <span class="badge bg-success status-badge">Paid</span>
+                                            {% elif payment.status == 'failed' %}
+                                                <span class="badge bg-danger status-badge">Failed</span>
+                                            {% elif payment.status == 'canceled' %}
+                                                <span class="badge bg-secondary status-badge">Canceled</span>
+                                            {% elif payment.status == 'refunded' %}
+                                                <span class="badge bg-warning status-badge">Refunded</span>
+                                            {% else %}
+                                                <span class="badge bg-info status-badge">{{ payment.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4 text-muted">
+                                        <i class="fas fa-credit-card fa-2x mb-2"></i>
+                                        <p class="mb-0">No payments recorded</p>
+                                        <small>Import Stripe data to see payments</small>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Second Row -->
+<div class="row mt-4">
+    <!-- Recent Customers -->
     <div class="col-md-6">
         <div class="card">
-            <div class="card-header">
-                <h5><i class="fas fa-calendar"></i> Upcoming Courses</h5>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-user-plus"></i> Recent Customers</h5>
+                <a href="{% url 'crm:customer_list' %}" class="btn btn-sm btn-outline-primary">View All</a>
             </div>
-            <div class="card-body">
+            <div class="card-body p-0">
+                {% if recent_customers %}
+                    <div class="list-group list-group-flush">
+                        {% for customer in recent_customers %}
+                            <a href="{% url 'crm:customer_detail' customer.id %}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">
+                                        {{ customer.first_name }} {{ customer.last_name }}
+                                        {% if customer.company_primary %}
+                                            <small class="text-muted">@ {{ customer.company_primary }}</small>
+                                        {% endif %}
+                                    </h6>
+                                    <small class="text-muted">{{ customer.created_at|timesince }} ago</small>
+                                </div>
+                                <p class="mb-1 small">
+                                    <i class="fas fa-envelope"></i> {{ customer.email_primary|default:"No email" }}
+                                </p>
+                                <div>
+                                    <span class="badge bg-{% if customer.status == 'active' %}success{% elif customer.status == 'prospect' %}info{% else %}secondary{% endif %}">
+                                        {{ customer.get_status_display }}
+                                    </span>
+                                    <span class="badge bg-primary">{{ customer.get_customer_type_display }}</span>
+                                </div>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-users fa-2x mb-2"></i>
+                        <p class="mb-0">No customers yet</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Courses -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-calendar-alt"></i> Upcoming Courses</h5>
+                <a href="/admin/crm/course/" class="btn btn-sm btn-outline-primary">Manage</a>
+            </div>
+            <div class="card-body p-0">
                 {% if upcoming_courses %}
-                    <div class="list-group">
+                    <div class="list-group list-group-flush">
                         {% for course in upcoming_courses %}
                             <div class="list-group-item">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h6 class="mb-1">{{ course.title }}</h6>
-                                    <small>{{ course.start_date|date:"M d, Y" }}</small>
+                                    <small class="text-muted">{{ course.start_date|date:"M d, Y" }}</small>
                                 </div>
-                                <p class="mb-1">{{ course.get_course_type_display }}</p>
-                                <small>${{ course.price }} - {{ course.duration_hours }} hours</small>
+                                <p class="mb-1 small text-muted">
+                                    <span class="badge bg-info">{{ course.get_course_type_display }}</span>
+                                    {{ course.duration_hours }} hours | ${{ course.price }}
+                                </p>
+                                <small>
+                                    <i class="fas fa-users"></i> Max: {{ course.max_participants }} participants
+                                </small>
                             </div>
                         {% endfor %}
                     </div>
                 {% else %}
-                    <p class="text-muted">No upcoming courses.</p>
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-book fa-2x mb-2"></i>
+                        <p class="mb-0">No upcoming courses</p>
+                    </div>
                 {% endif %}
             </div>
         </div>
@@ -131,41 +351,47 @@
 
 <!-- Quick Actions -->
 <div class="row mt-4">
-    <div class="col-md-12">
+    <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h5><i class="fas fa-bolt"></i> Quick Actions</h5>
+                <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
             </div>
             <div class="card-body">
-                <div class="row">
+                <div class="row g-3">
                     <div class="col-md-2">
-                        <a href="{% url 'crm:test_customer_create' %}" class="btn btn-primary btn-lg w-100 mb-2">
-                            <i class="fas fa-user-plus"></i><br>Add Customer
+                        <a href="{% url 'crm:customer_create' %}" class="btn btn-primary w-100 py-3">
+                            <i class="fas fa-user-plus fa-lg d-block mb-1"></i>
+                            Add Customer
                         </a>
                     </div>
                     <div class="col-md-2">
-                        <a href="/admin/crm/course/add/" class="btn btn-success btn-lg w-100 mb-2">
-                            <i class="fas fa-book-plus"></i><br>Add Course
+                        <a href="/admin/crm/course/add/" class="btn btn-success w-100 py-3">
+                            <i class="fas fa-book fa-lg d-block mb-1"></i>
+                            Add Course
                         </a>
                     </div>
                     <div class="col-md-2">
-                        <a href="/admin/crm/conference/add/" class="btn btn-info btn-lg w-100 mb-2">
-                            <i class="fas fa-calendar-plus"></i><br>Add Conference
+                        <a href="{% url 'crm:import_stripe' %}" class="btn btn-info w-100 py-3 text-white">
+                            <i class="fas fa-file-import fa-lg d-block mb-1"></i>
+                            Import Stripe
                         </a>
                     </div>
                     <div class="col-md-2">
-                        <a href="{% url 'crm:test_export_csv' %}" class="btn btn-warning btn-lg w-100 mb-2">
-                            <i class="fas fa-download"></i><br>Export CSV
+                        <a href="{% url 'crm:export_customers_csv' %}" class="btn btn-warning w-100 py-3">
+                            <i class="fas fa-download fa-lg d-block mb-1"></i>
+                            Export CSV
                         </a>
                     </div>
                     <div class="col-md-2">
-                        <a href="{% url 'crm:customer_list' %}" class="btn btn-dark btn-lg w-100 mb-2">
-                            <i class="fas fa-list"></i><br>View Customers
+                        <a href="{% url 'crm:customer_list' %}" class="btn btn-secondary w-100 py-3">
+                            <i class="fas fa-list fa-lg d-block mb-1"></i>
+                            View Customers
                         </a>
                     </div>
                     <div class="col-md-2">
-                        <a href="/api/v1/" class="btn btn-secondary btn-lg w-100 mb-2">
-                            <i class="fas fa-code"></i><br>API Explorer
+                        <a href="/api/v1/" class="btn btn-dark w-100 py-3">
+                            <i class="fas fa-code fa-lg d-block mb-1"></i>
+                            API Explorer
                         </a>
                     </div>
                 </div>
@@ -173,4 +399,31 @@
         </div>
     </div>
 </div>
+
+<script>
+// Filter timeline by type
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+
+        const filter = this.dataset.filter;
+        document.querySelectorAll('.timeline-item').forEach(item => {
+            if (filter === 'all') {
+                item.style.display = 'block';
+            } else if (filter === 'customer' && item.dataset.type.includes('customer')) {
+                item.style.display = 'block';
+            } else if (filter === 'payment' && item.dataset.type.includes('payment')) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+});
+
+function refreshDashboard() {
+    location.reload();
+}
+</script>
 {% endblock %}

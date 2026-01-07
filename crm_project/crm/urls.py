@@ -20,7 +20,11 @@ urlpatterns = [
     path('customers/', frontend_views.customer_list, name='customer_list'),
     path('customers/create/', frontend_views.customer_create, name='customer_create'),
     path('customers/export/csv/', frontend_views.export_customers_csv, name='export_customers_csv'),
-    
+
+    # Stripe Payment Routes
+    path('stripe/payments/', frontend_views.stripe_payments, name='stripe_payments'),
+    path('stripe/import/', frontend_views.import_stripe, name='import_stripe'),
+
     # Protected Frontend Routes (require login)
     path('secure/', frontend_views.dashboard, name='secure_dashboard'),
     path('secure/customers/', frontend_views.customer_list, name='secure_customer_list'),
@@ -29,10 +33,10 @@ urlpatterns = [
     path('secure/customers/<uuid:customer_id>/edit/', frontend_views.customer_edit, name='customer_edit'),
     path('secure/customers/<uuid:customer_id>/delete/', frontend_views.customer_delete, name='customer_delete'),
     path('secure/customers/<uuid:customer_id>/message/', frontend_views.send_message, name='send_message'),
-    
+
     # Additional secure views
     path('dashboard/', frontend_views.dashboard, name='customer_dashboard'),
-    
+
     # Test endpoints (no security)
     path('test/', views.test_dashboard, name='test_dashboard'),
     path('test/customers/create/', views.test_customer_create, name='test_customer_create'),
@@ -41,11 +45,11 @@ urlpatterns = [
     path('test/youtube/', frontend_views.test_youtube_form, name='test_youtube_form'),
     path('test/simple-youtube/', frontend_views.simple_youtube_test, name='simple_youtube_test'),
     path('test/api-youtube/', frontend_views.api_youtube_test, name='api_youtube_test'),
-    
+
     # API Routes
     path('api/v1/', include(router.urls)),
     path('api-auth/', include('rest_framework.urls')),
-    
+
     # Monitoring endpoints
     # path('health/', health_check_view, name='health_check'),  # Temporarily disabled
     # path('metrics/', metrics_view, name='metrics'),  # Temporarily disabled

@@ -348,3 +348,236 @@ def test_country_code_form(request):
     """Simple test view for country code functionality - NO LOGIN REQUIRED"""
     form = CustomerForm()
     return render(request, 'crm/test_country_code_form.html', {'form': form})
+
+
+# ============================================
+# Enhanced Dashboard and Stripe Integration
+# ============================================
+
+@login_required
+def dashboard(request):
+    """Enhanced CRM Dashboard with activity timeline and Stripe payments"""
+    from django.utils import timezone
+    from django.db.models import Sum, Count
+    from datetime import timedelta
+    
+    today = timezone.now().date()
+    yesterday = today - timedelta(days=1)
+    
+    # Key metrics
+    total_customers = Customer.objects.count()
+    active_customers = Customer.objects.filter(status='active').count()
+    active_percentage = round((active_customers / total_customers * 100) if total_customers > 0 else 0)
+    new_customers_today = Customer.objects.filter(created_at__date=today).count()
+    
+    total_courses = Course.objects.filter(is_active=True).count()
+    total_enrollments = Enrollment.objects.filter(status__in=['registered', 'confirmed']).count()
+    
+    # Stripe payment metrics
+    try:
+        from .models import StripePayment, Activity
+        payment_stats = StripePayment.objects.filter(status='paid').aggregate(
+            total=Sum('converted_amount'),
+            count=Count('id')
+        )
+        total_revenue = payment_stats['total'] or 0
+        payment_count = payment_stats['count'] or 0
+        
+        # Recent payments
+        recent_payments = StripePayment.objects.select_related('customer').order_by('-payment_date')[:10]
+        
+        # Activity timeline
+        activities = Activity.objects.select_related('customer').order_by('-created_at')[:20]
+    except Exception:
+        total_revenue = 0
+        payment_count = 0
+        recent_payments = []
+        activities = []
+    
+    # Recent customers
+    recent_customers = Customer.objects.order_by('-created_at')[:5]
+    
+    # Upcoming courses
+    upcoming_courses = Course.objects.filter(
+        start_date__gte=timezone.now(),
+        is_active=True
+    ).order_by('start_date')[:5]
+    
+    context = {
+        'total_customers': total_customers,
+        'active_customers': active_customers,
+        'active_percentage': active_percentage,
+        'new_customers_today': new_customers_today,
+        'total_courses': total_courses,
+        'total_enrollments': total_enrollments,
+        'total_revenue': f"{total_revenue:,.2f}" if total_revenue else "0.00",
+        'payment_count': payment_count,
+        'recent_customers': recent_customers,
+        'upcoming_courses': upcoming_courses,
+        'recent_payments': recent_payments,
+        'activities': activities,
+        'today': today,
+        'yesterday': yesterday,
+        'page_title': 'Dashboard',
+    }
+    return render(request, 'crm/dashboard.html', context)
+
+
+@login_required
+def stripe_payments(request):
+    """View all Stripe payments with filtering"""
+    from .models import StripePayment
+    from django.core.paginator import Paginator
+    
+    payments = StripePayment.objects.select_related('customer').order_by('-payment_date')
+    
+    # Filtering
+    status = request.GET.get('status')
+    if status:
+        payments = payments.filter(status=status)
+    
+    source = request.GET.get('source')
+    if source:
+        payments = payments.filter(source_account=source)
+    
+    # Search
+    search = request.GET.get('search')
+    if search:
+        payments = payments.filter(
+            Q(customer_email__icontains=search) |
+            Q(user_name__icontains=search) |
+            Q(stripe_id__icontains=search)
+        )
+    
+    # Pagination
+    paginator = Paginator(payments, 25)
+    page = request.GET.get('page', 1)
+    payments = paginator.get_page(page)
+    
+    context = {
+        'payments': payments,
+        'page_title': 'Stripe Payments',
+        'current_status': status,
+        'current_source': source,
+        'search_query': search,
+    }
+    return render(request, 'crm/stripe_payments.html', context)
+
+
+@login_required
+def import_stripe(request):
+    """Import Stripe payment data from CSV"""
+    import csv
+    from decimal import Decimal
+    from datetime import datetime
+    from .models import StripePayment, Activity
+    
+    if request.method == 'POST' and request.FILES.get('csv_file'):
+        csv_file = request.FILES['csv_file']
+        source_account = request.POST.get('source_account', 'unknown')
+        
+        if not csv_file.name.endswith('.csv'):
+            messages.error(request, 'Please upload a CSV file')
+            return redirect('crm:import_stripe')
+        
+        try:
+            # Detect encoding
+            import chardet
+            raw_data = csv_file.read()
+            detected = chardet.detect(raw_data)
+            encoding = detected['encoding'] or 'utf-8'
+            csv_file.seek(0)
+            
+            # Parse CSV
+            decoded_file = raw_data.decode(encoding)
+            reader = csv.DictReader(decoded_file.splitlines())
+            
+            imported = 0
+            skipped = 0
+            errors = []
+            
+            for row in reader:
+                try:
+                    stripe_id = row.get('id', '').strip()
+                    if not stripe_id:
+                        skipped += 1
+                        continue
+                    
+                    # Skip if already exists
+                    if StripePayment.objects.filter(stripe_id=stripe_id).exists():
+                        skipped += 1
+                        continue
+                    
+                    # Parse amount
+                    amount = Decimal(row.get('Amount', '0') or '0')
+                    amount_refunded = Decimal(row.get('Amount Refunded', '0') or '0')
+                    converted_amount = Decimal(row.get('Converted Amount', '0') or '0') if row.get('Converted Amount') else None
+                    fee = Decimal(row.get('Fee', '0') or '0')
+                    
+                    # Parse dates
+                    date_str = row.get('Created date (UTC)', '')
+                    payment_date = datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S') if date_str else None
+                    
+                    # Parse status
+                    status_map = {
+                        'Paid': 'paid',
+                        'Failed': 'failed',
+                        'canceled': 'canceled',
+                        'Refunded': 'refunded',
+                    }
+                    raw_status = row.get('Status', 'pending')
+                    status = status_map.get(raw_status, 'pending')
+                    
+                    # Find matching customer
+                    customer_email = row.get('Customer Email', '')
+                    customer = None
+                    if customer_email:
+                        customer = Customer.objects.filter(email_primary__iexact=customer_email).first()
+                    
+                    # Create payment record
+                    StripePayment.objects.create(
+                        stripe_id=stripe_id,
+                        amount=amount,
+                        amount_refunded=amount_refunded,
+                        currency=row.get('Currency', 'usd').lower(),
+                        converted_amount=converted_amount,
+                        converted_currency=row.get('Converted Currency', '').lower(),
+                        status=status,
+                        customer_email=customer_email,
+                        stripe_customer_id=row.get('Customer ID', ''),
+                        customer=customer,
+                        site=row.get('1. Site (metadata)', '') or row.get('site (metadata)', ''),
+                        plan_name=row.get('stripe_plan (metadata)', ''),
+                        plan_days=int(row.get('plan_days (metadata)', 0) or 0) if row.get('plan_days (metadata)') else None,
+                        user_name=row.get('3. User name (metadata)', '') or row.get('2. User email (metadata)', ''),
+                        fee=fee,
+                        payment_date=payment_date,
+                        source_account=source_account,
+                        raw_data=dict(row),
+                    )
+                    imported += 1
+                    
+                except Exception as e:
+                    errors.append(f"Row error: {str(e)}")
+            
+            # Log activity
+            Activity.log(
+                activity_type='import_completed',
+                title=f'Stripe Import: {imported} payments',
+                description=f'Imported {imported} payments from {source_account}, skipped {skipped}',
+                performed_by=request.user.username if request.user.is_authenticated else 'system'
+            )
+            
+            messages.success(request, f'Successfully imported {imported} payments. Skipped {skipped} (duplicates/empty).')
+            if errors:
+                messages.warning(request, f'Encountered {len(errors)} errors during import.')
+                
+        except Exception as e:
+            messages.error(request, f'Error importing CSV: {str(e)}')
+        
+        return redirect('crm:stripe_payments')
+    
+    context = {
+        'page_title': 'Import Stripe Payments',
+    }
+    return render(request, 'crm/import_stripe.html', context)

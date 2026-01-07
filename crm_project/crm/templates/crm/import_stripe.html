@@ -1,0 +1,79 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}Import Stripe Payments - CRM System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-file-import"></i> Import Stripe Payments</h1>
+    <a href="{% url 'crm:stripe_payments' %}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Payments
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-upload"></i> Upload CSV File</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label class="form-label">Source Account</label>
+                        <select name="source_account" class="form-select" required>
+                            <option value="">Select source...</option>
+                            <option value="cgge">CGGE (Blender Studio CN)</option>
+                            <option value="ki">KI (Krystal Institute)</option>
+                            <option value="kt">KT (Krystal OTP)</option>
+                        </select>
+                        <small class="text-muted">Select which Stripe account this data is from</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">CSV File</label>
+                        <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+                        <small class="text-muted">Upload the Stripe payment export CSV file</small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> Import Payments
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Import Help</h5>
+            </div>
+            <div class="card-body">
+                <h6>Expected CSV Columns:</h6>
+                <ul class="small">
+                    <li><code>id</code> - Stripe payment ID</li>
+                    <li><code>Created date (UTC)</code></li>
+                    <li><code>Amount</code></li>
+                    <li><code>Currency</code></li>
+                    <li><code>Status</code></li>
+                    <li><code>Customer Email</code></li>
+                    <li><code>Fee</code></li>
+                </ul>
+
+                <h6 class="mt-3">Notes:</h6>
+                <ul class="small">
+                    <li>Duplicate payments (same Stripe ID) will be skipped</li>
+                    <li>Customer matching is based on email address</li>
+                    <li>UTF-8 and Latin-1 encodings are supported</li>
+                </ul>
+
+                <h6 class="mt-3">Data Files:</h6>
+                <p class="small">You can find sample Stripe CSV files in:</p>
+                <code class="small">data/datasets/stripe_*.csv</code>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
